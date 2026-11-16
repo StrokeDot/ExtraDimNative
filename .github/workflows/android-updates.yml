@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OTA_KEYSTORE_B64: ${{ secrets.LUMASHADE_KEYSTORE_BASE64 }}
-      LUMASHADE_STORE_PASSWORD: ${{ secrets.LUMASHADE_STORE_PASSWORD }}
-      LUMASHADE_KEY_ALIAS: ${{ secrets.LUMASHADE_KEY_ALIAS }}
-      LUMASHADE_KEY_PASSWORD: ${{ secrets.LUMASHADE_KEY_PASSWORD }}
+      LUMASHADE_STORE_PASSWORD: ${{ secrets.LUMASHADE_SIGNING_PASSWORD }}
+      LUMASHADE_KEY_ALIAS: lumashade
+      LUMASHADE_KEY_PASSWORD: ${{ secrets.LUMASHADE_SIGNING_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - name: Check private signing setup
@@ -26,7 +26,7 @@ jobs:
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Signed OTA updates need four LUMASHADE_* GitHub Actions secrets. Never commit the keystore or password."
+            echo "::warning::Signed OTA updates need two LUMASHADE_* GitHub Actions secrets. Never commit the keystore or password."
           fi
       - uses: actions/setup-java@v4
         if: steps.signing.outputs.ready == 'true'

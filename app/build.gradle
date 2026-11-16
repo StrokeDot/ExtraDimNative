@@ -18,8 +18,8 @@ android {
             if (keystoreFile) {
                 storeFile file(keystoreFile)
                 storePassword System.getenv("LUMASHADE_STORE_PASSWORD")
-                keyAlias System.getenv("LUMASHADE_KEY_ALIAS")
-                keyPassword System.getenv("LUMASHADE_KEY_PASSWORD")
+                keyAlias System.getenv("LUMASHADE_KEY_ALIAS") ?: "lumashade"
+                keyPassword System.getenv("LUMASHADE_KEY_PASSWORD") ?: System.getenv("LUMASHADE_STORE_PASSWORD")
             }
         }
     }
