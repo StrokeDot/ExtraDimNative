@@ -94,8 +94,9 @@ public final class NotificationController {
             nm.createNotificationChannel(ch);
             int selected=selected(c);
             boolean dim=DimController.active(c),warm=BlueLightController.active(c);
+            // Same direction as the in-app slider: left = dimmer, right = brighter.
             int dimPercent=Math.max(0,Math.min(100,
-                    Math.round(100f*(DimController.level(c)-DimController.MIN)/
+                    Math.round(100f*(DimController.MAX-DimController.level(c))/
                             (DimController.MAX-DimController.MIN))));
             int warmPercent=BlueLightController.strength(c);
             PendingIntent open=PendingIntent.getActivity(c,41,

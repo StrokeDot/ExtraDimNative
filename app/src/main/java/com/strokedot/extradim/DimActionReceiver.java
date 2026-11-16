@@ -19,12 +19,12 @@ public class DimActionReceiver extends BroadcastReceiver {
 
     private static int clamp(int value) {return Math.max(0,Math.min(100,value));}
     private static int dimPercent(Context c) {
-        return clamp(Math.round(100f*(DimController.level(c)-DimController.MIN)/
+        return clamp(Math.round(100f*(DimController.MAX-DimController.level(c))/
                 (DimController.MAX-DimController.MIN)));
     }
     private static void setDim(Context c,int percent) {
         if(!DimController.hasPermission(c))return;
-        int level=DimController.MIN+(DimController.MAX-DimController.MIN)*clamp(percent)/100;
+        int level=DimController.MAX-(DimController.MAX-DimController.MIN)*clamp(percent)/100;
         DimController.write(c,DimController.LEVEL,level);
     }
     @Override public void onReceive(Context c,Intent intent) {
