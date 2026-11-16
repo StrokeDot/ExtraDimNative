@@ -1,17 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="40dp"
-    android:orientation="horizontal" android:gravity="center_vertical"
-    android:paddingLeft="10dp" android:paddingRight="10dp">
-    <ImageView android:layout_width="30dp" android:layout_height="30dp"
-        android:src="@drawable/ic_lumashade" android:contentDescription="LumaShade"/>
-    <TextView android:id="@+id/n_small_title"
-        android:layout_width="0dp" android:layout_weight="1"
-        android:layout_height="wrap_content" android:layout_marginLeft="10dp"
-        android:text="LumaShade" android:textColor="#E7E9F2"
-        android:textSize="13sp" android:maxLines="1"/>
-    <ImageView android:id="@+id/n_small_settings"
-        android:layout_width="34dp" android:layout_height="34dp"
-        android:padding="7dp" android:src="@drawable/ic_settings"
-        android:contentDescription="Open LumaShade settings"/>
+ android:layout_width="match_parent" android:layout_height="48dp"
+ android:orientation="horizontal" android:gravity="center_vertical"
+ android:paddingLeft="7dp" android:paddingRight="7dp">
+ <ImageView android:layout_width="30dp" android:layout_height="30dp"
+ android:src="@drawable/ic_lumashade" android:contentDescription="LumaShade"/>
+ <TextView android:layout_width="0dp" android:layout_weight="1"
+ android:layout_height="wrap_content" android:layout_marginLeft="9dp"
+ android:text="LumaShade" android:textColor="#E8ECF5"
+ android:textSize="14sp" android:textStyle="bold"/>
+ <ImageView android:id="@+id/n_small_dim" android:layout_width="38dp" android:layout_height="38dp"
+ android:padding="8dp" android:src="@drawable/ic_lumashade_mono"
+ android:contentDescription="Select Extra Dim"/>
+ <ImageView android:id="@+id/n_small_warm" android:layout_width="38dp" android:layout_height="38dp"
+ android:padding="8dp" android:src="@drawable/ic_warm_filter_off"
+ android:contentDescription="Select Blue light filter"/>
+ <ImageView android:id="@+id/n_small_settings" android:layout_width="38dp" android:layout_height="38dp"
+ android:padding="8dp" android:src="@drawable/ic_settings"
+ android:contentDescription="Open settings"/>
 </LinearLayout>
