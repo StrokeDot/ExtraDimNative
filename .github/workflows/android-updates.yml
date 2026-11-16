@@ -29,21 +29,36 @@ jobs:
             echo "::warning::Signed OTA updates need two LUMASHADE_* GitHub Actions secrets. Never commit the keystore or password."
           fi
       - uses: actions/setup-java@v4
-        if: steps.signing.outputs.ready == 'true'
         with:
           distribution: temurin
           java-version: '17'
       - name: Install Android SDK
-        if: steps.signing.outputs.ready == 'true'
         run: |
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
       - uses: gradle/actions/setup-gradle@v4
-        if: steps.signing.outputs.ready == 'true'
         with:
           gradle-version: '8.11.1'
+      - name: Validate release APK with throwaway signing key
+        if: steps.signing.outputs.ready != 'true'
+        run: |
+          # This private key is created and discarded inside the CI runner.
+          # The resulting artifact is NEVER offered as an update.
+          KEY="$RUNNER_TEMP/discard-after-test.p12"
+          keytool -genkeypair -noprompt -keystore "$KEY" -storetype PKCS12 \
+            -alias lumashade -keyalg RSA -keysize 3072 -validity 2 \
+            -dname "CN=Disposable CI Verification" \
+            -storepass "ThrowawayVerificationOnly2026" -keypass "ThrowawayVerificationOnly2026"
+          LUMASHADE_KEYSTORE="$KEY" \
+            LUMASHADE_STORE_PASSWORD="ThrowawayVerificationOnly2026" \
+            LUMASHADE_KEY_ALIAS="lumashade" \
+            LUMASHADE_KEY_PASSWORD="ThrowawayVerificationOnly2026" \
+            gradle :app:assembleRelease --no-daemon
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose \
+            app/build/outputs/apk/release/app-release.apk
+          echo "::notice::Unsigned OTA publishing is disabled; validated release compilation with a disposable key only."
       - name: Restore app signing keystore
         if: steps.signing.outputs.ready == 'true'
         run: |
