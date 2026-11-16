@@ -24,6 +24,7 @@ public final class NotificationController {
     private NotificationController() {}
     private static final String PREFS="notification_controls";
     private static final String ENABLED="enabled";
+    private static final String PINNED="pinned";
     private static final String PANEL="open_panel";
     private static final String CHANNEL="lumashade_controls_v3";
     private static final int ID=31;
@@ -33,6 +34,15 @@ public final class NotificationController {
     static boolean enabled(Context c) {
         return c.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
                 .getBoolean(ENABLED,false);
+    }
+    static boolean pinned(Context c) {
+        return c.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
+                .getBoolean(PINNED,true);
+    }
+    static void setPinned(Context c,boolean pin) {
+        c.getSharedPreferences(PREFS,Context.MODE_PRIVATE).edit()
+                .putBoolean(PINNED,pin).apply();
+        refresh(c);
     }
     static boolean canPost(Context c) {
         return Build.VERSION.SDK_INT<33||
@@ -150,9 +160,16 @@ public final class NotificationController {
                     .setCustomBigContentView(big)
                     .setOnlyAlertOnce(true)
                     .setShowWhen(false)
-                    .setOngoing(true)
+                    .setOngoing(pinned(c))
+                    .setAutoCancel(false)
                     .setCategory(Notification.CATEGORY_STATUS)
                     .build();
+            if (pinned(c)) {
+                // NO_CLEAR blocks Clear all where supported. Ongoing further
+                // requests persistence. Android 14+ can still permit swiping it away.
+                n.flags |= Notification.FLAG_NO_CLEAR;
+                n.flags |= Notification.FLAG_ONGOING_EVENT;
+            }
             nm.notify(ID,n);
         } finally {posting=false;}
     }

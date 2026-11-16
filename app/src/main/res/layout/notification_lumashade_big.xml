@@ -40,39 +40,39 @@
       android:layout_height="36dp" android:padding="8dp" android:src="@drawable/ic_chevron_up"
       android:contentDescription="Close intensity bar"/>
   </LinearLayout>
-  <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+  <LinearLayout android:layout_width="match_parent" android:layout_height="56dp"
     android:orientation="horizontal" android:gravity="center_vertical">
-    <TextView android:id="@+id/n_dim_minus" android:layout_width="34dp"
-       android:layout_height="44dp" android:gravity="center" android:text="−"
+    <TextView android:id="@+id/n_dim_minus" android:layout_width="50dp"
+       android:layout_height="56dp" android:gravity="center" android:text="−" android:background="@drawable/bg_notification_control_button"
        android:textSize="23sp" android:textColor="#E0E6F2"
        android:contentDescription="Decrease Extra Dim intensity"/>
     <FrameLayout android:layout_width="0dp" android:layout_weight="1"
-      android:layout_height="44dp">
+      android:layout_height="56dp">
       <ImageView android:id="@+id/n_dim_bar"
-        android:layout_width="match_parent" android:layout_height="44dp"
+        android:layout_width="match_parent" android:layout_height="56dp"
         android:scaleType="fitXY" android:contentDescription="Extra Dim intensity"/>
-      <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+      <LinearLayout android:layout_width="match_parent" android:layout_height="56dp"
         android:orientation="horizontal">
-        <TextView android:id="@+id/n_dim_hit1" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 10 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit2" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 20 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit3" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 30 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit4" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 40 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit5" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 50 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit6" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 60 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit7" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 70 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit8" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 80 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit9" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 90 percent" android:text="" />
-<TextView android:id="@+id/n_dim_hit10" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 100 percent" android:text="" />
+        <TextView android:id="@+id/n_dim_hit1" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 10 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit2" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 20 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit3" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 30 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit4" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 40 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit5" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 50 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit6" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 60 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit7" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 70 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit8" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 80 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit9" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 90 percent" android:text="" />
+<TextView android:id="@+id/n_dim_hit10" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 100 percent" android:text="" />
       </LinearLayout>
     </FrameLayout>
-    <TextView android:id="@+id/n_dim_plus" android:layout_width="34dp"
-       android:layout_height="44dp" android:gravity="center" android:text="+"
+    <TextView android:id="@+id/n_dim_plus" android:layout_width="50dp"
+       android:layout_height="56dp" android:gravity="center" android:text="+" android:background="@drawable/bg_notification_control_button"
        android:textSize="22sp" android:textColor="#E0E6F2"
        android:contentDescription="Increase Extra Dim intensity"/>
   </LinearLayout>
   <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-      android:text="Tap the track or use − / + to adjust"
-      android:textSize="10sp" android:textColor="#929BAC" android:gravity="center"
+      android:text="TAP to set a level • Use − / + for 5% steps • Do not swipe"
+      android:textSize="11sp" android:textColor="#B7C0D0" android:gravity="center"
       android:paddingBottom="4dp"/>
 </LinearLayout>
  <LinearLayout android:id="@+id/n_warm_panel" android:layout_width="match_parent"
@@ -93,39 +93,39 @@
       android:layout_height="36dp" android:padding="8dp" android:src="@drawable/ic_chevron_up"
       android:contentDescription="Close intensity bar"/>
   </LinearLayout>
-  <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+  <LinearLayout android:layout_width="match_parent" android:layout_height="56dp"
     android:orientation="horizontal" android:gravity="center_vertical">
-    <TextView android:id="@+id/n_warm_minus" android:layout_width="34dp"
-       android:layout_height="44dp" android:gravity="center" android:text="−"
+    <TextView android:id="@+id/n_warm_minus" android:layout_width="50dp"
+       android:layout_height="56dp" android:gravity="center" android:text="−" android:background="@drawable/bg_notification_control_button"
        android:textSize="23sp" android:textColor="#E0E6F2"
        android:contentDescription="Decrease Blue light filter intensity"/>
     <FrameLayout android:layout_width="0dp" android:layout_weight="1"
-      android:layout_height="44dp">
+      android:layout_height="56dp">
       <ImageView android:id="@+id/n_warm_bar"
-        android:layout_width="match_parent" android:layout_height="44dp"
+        android:layout_width="match_parent" android:layout_height="56dp"
         android:scaleType="fitXY" android:contentDescription="Blue light filter intensity"/>
-      <LinearLayout android:layout_width="match_parent" android:layout_height="44dp"
+      <LinearLayout android:layout_width="match_parent" android:layout_height="56dp"
         android:orientation="horizontal">
-        <TextView android:id="@+id/n_warm_hit1" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 10 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit2" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 20 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit3" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 30 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit4" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 40 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit5" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 50 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit6" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 60 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit7" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 70 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit8" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 80 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit9" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 90 percent" android:text="" />
-<TextView android:id="@+id/n_warm_hit10" android:layout_width="0dp" android:layout_height="42dp" android:layout_weight="1" android:contentDescription="Set intensity to 100 percent" android:text="" />
+        <TextView android:id="@+id/n_warm_hit1" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 10 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit2" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 20 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit3" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 30 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit4" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 40 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit5" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 50 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit6" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 60 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit7" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 70 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit8" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 80 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit9" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 90 percent" android:text="" />
+<TextView android:id="@+id/n_warm_hit10" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:contentDescription="Set intensity to 100 percent" android:text="" />
       </LinearLayout>
     </FrameLayout>
-    <TextView android:id="@+id/n_warm_plus" android:layout_width="34dp"
-       android:layout_height="44dp" android:gravity="center" android:text="+"
+    <TextView android:id="@+id/n_warm_plus" android:layout_width="50dp"
+       android:layout_height="56dp" android:gravity="center" android:text="+" android:background="@drawable/bg_notification_control_button"
        android:textSize="22sp" android:textColor="#E0E6F2"
        android:contentDescription="Increase Blue light filter intensity"/>
   </LinearLayout>
   <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-      android:text="Tap the track or use − / + to adjust"
-      android:textSize="10sp" android:textColor="#929BAC" android:gravity="center"
+      android:text="TAP to set a level • Use − / + for 5% steps • Do not swipe"
+      android:textSize="11sp" android:textColor="#B7C0D0" android:gravity="center"
       android:paddingBottom="4dp"/>
 </LinearLayout>
  <TextView android:id="@+id/n_help" android:layout_width="match_parent"

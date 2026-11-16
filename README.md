@@ -83,3 +83,16 @@ signing certificates prevent upgrades unless a persistent keystore is set up.
 For production self-updating releases we must configure stable private signing
 credentials in GitHub Actions secrets and replace the test-only read workaround
 with a production-compatible solution. Do not commit a private keystore.
+
+## v0.12: pinned notification mode and touch targets
+
+An enabled notification defaults to **Keep notification pinned**. This sets
+ongoing and no-clear flags to reduce accidental clearing. Android 14+ explicitly
+allows people to dismiss even some ongoing notifications while unlocked, so this
+is a best-effort request, not a system-level lock. The setting is optional, and
+the notification itself can be turned off in the application at any time.
+
+The thin intensity track in the custom notification is a bitmap with **tappable
+regions**; it is *not* a draggable Android SeekBar. Try a single tap, not a
+horizontal swipe. Large minus/plus controls change the selected intensity in
+5% steps. For true continuous dragging use the real sliders in the application.

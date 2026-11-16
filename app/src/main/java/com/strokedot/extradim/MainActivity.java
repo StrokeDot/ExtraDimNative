@@ -37,7 +37,7 @@ public final class MainActivity extends Activity {
     private static final int PANEL = 0xFF242424;
     private static final String GRANT =
         "adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS";
-    private Switch enabled, persist, shortcut, notificationControls, blueLight;
+    private Switch enabled, persist, shortcut, notificationControls, pinnedNotification, blueLight;
     private SeekBar intensity, warmth;
     private TextView warmthLabel;
     private PhoneIllustrationView illustration;
@@ -257,9 +257,16 @@ public final class MainActivity extends Activity {
         notificationControls = sw();
         notificationCard.addView(labelSwitch("Notification bar controls", notificationControls),lp(-1,-2));
         TextView notificationHint = text(
-                "Quick controls for Extra Dim and blue light, with blue and amber intensity bars. Tap a bar segment to select a level.",
+                "Tap a position on the blue or amber track, or use − / +. Swipe gestures cannot adjust a notification bar.",
                 13,GREY,false);
         addWithMargins(notificationCard, notificationHint,0,2);
+        addGap(notificationCard,8);
+        pinnedNotification = sw();
+        notificationCard.addView(labelSwitch("Keep notification pinned", pinnedNotification), lp(-1,-2));
+        TextView pinnedHint = text(
+                "On by default. Helps prevent clearing the controls; Android may still allow a swipe to dismiss. Turn it off to allow normal dismissal.",
+                12,GREY,false);
+        addWithMargins(notificationCard,pinnedHint,0,7);
         addWithMargins(body,notificationCard,0,14);
         LinearLayout updateCard = panel();
         TextView updateTitle=text("Updates",16,WHITE,true);
@@ -382,6 +389,13 @@ public final class MainActivity extends Activity {
                 sync();
             }
         });
+        pinnedNotification.setOnCheckedChangeListener((button, checked) -> {
+            if (syncing) return;
+            NotificationController.setPinned(this, checked);
+            if (checked) Toast.makeText(this,
+                    "Pinned mode enabled (Android can still permit manual dismissal).",
+                    Toast.LENGTH_LONG).show();
+        });
         notificationControls.setOnCheckedChangeListener((button, checked) -> {
             if (syncing) return;
             if (checked && !NotificationController.canPost(this)) {
@@ -489,6 +503,7 @@ public final class MainActivity extends Activity {
         if (illustration != null) illustration.setWarmthEnabled(BlueLightController.active(this));
         shortcut.setChecked(shortcutEnabled());
         notificationControls.setChecked(NotificationController.enabled(this));
+        pinnedNotification.setChecked(NotificationController.pinned(this));
         boolean available = DimController.featureReportedAvailable(this);
         currentStatus.setText("Native dimming " + (DimController.active(this) ? "ON" : "OFF")
                 + "  ·  saved level " + DimController.level(this)
@@ -513,6 +528,7 @@ public final class MainActivity extends Activity {
         persist.setEnabled(permitted);
         shortcut.setEnabled(permitted);
         notificationControls.setEnabled(permitted);
+        pinnedNotification.setEnabled(NotificationController.enabled(this));
         permissionBanner.setVisibility(permitted?View.GONE:View.VISIBLE);
         if (!permitted) {
             permissionBanner.setText("One-time ADB setup required. Tap to copy the permission command, run it from PowerShell, then return to this screen.");
