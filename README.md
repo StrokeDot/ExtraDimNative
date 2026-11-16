@@ -96,3 +96,45 @@ The thin intensity track in the custom notification is a bitmap with **tappable
 regions**; it is *not* a draggable Android SeekBar. Try a single tap, not a
 horizontal swipe. Large minus/plus controls change the selected intensity in
 5% steps. For true continuous dragging use the real sliders in the application.
+
+
+## Signed in-app updates, no manual GitHub Releases (v0.13+)
+
+Once configured, GitHub Actions automatically publishes a normal signed APK
+on a public updates branch with version metadata (latest.json). New versions
+are discovered by the app, downloaded, verified for checksum, package/version
+and signing certificate, then sent to Android's installer for user approval.
+
+First-time signing setup on Windows (one time only):
+
+1. Run scripts/setup-signing.ps1 in PowerShell from the downloaded repository.
+   It generates a permanent private .p12 keystore in Documents/LumaShadeSigning
+   (or reuses the existing keystore) and copies its base64 content to clipboard.
+2. At https://github.com/StrokeDot/ExtraDimNative/settings/secrets/actions
+   create LUMASHADE_KEYSTORE_BASE64 containing the copied base64 key.
+3. Create LUMASHADE_SIGNING_PASSWORD with your chosen keystore password.
+4. In GitHub Actions, manually run Publish signed LumaShade update once.
+   Subsequent versioned app changes automatically publish newer signed APKs.
+   No formal GitHub Release is needed.
+
+The FIRST stable signed app will require replacing the old test-only APK,
+which used an unrelated temporary debug signature. This is a one-time
+installation and WRITE_SECURE_SETTINGS grant by ADB. Later signed updates can
+install from within the app without ADB. Android still asks for confirmation
+and permission to install unknown apps.
+
+An update check runs when the app opens (at most once per six hours).
+It notifies for a newer published version if Android notifications are allowed.
+
+SECURITY: Do not commit your .p12, password, or base64 key publicly. Back up
+the signing key securely. If the signing key is lost, future APKs cannot
+update the existing app in place.
+
+COMPATIBILITY: The standard installable build is not marked testOnly. Android
+16 restricts reading hidden Extra Dim settings from third-party apps, so
+LumaShade remembers the last setting that this app successfully wrote. Those
+remembered values may be stale if changed by other applications, Xiaomi
+Settings or the original accessibility shortcut. This is a known limitation.
+
+Until secrets are configured, the signed OTA workflow intentionally skips
+publishing APKs; the old development artifacts still require ADB -t.
