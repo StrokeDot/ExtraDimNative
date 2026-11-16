@@ -1,7 +1,9 @@
 package com.strokedot.extradim;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
@@ -31,7 +33,7 @@ public final class MainActivity extends Activity {
     private static final int PANEL = 0xFF242424;
     private static final String GRANT =
         "adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS";
-    private Switch enabled, persist, shortcut;
+    private Switch enabled, persist, shortcut, notificationControls;
     private SeekBar intensity;
     private TextView permissionBanner, currentStatus, actionStatus;
     private boolean syncing;
@@ -54,6 +56,7 @@ public final class MainActivity extends Activity {
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.LEVEL), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.PERSIST), false, observer);
         sync();
+        NotificationController.refresh(this);
     }
     @Override protected void onPause() {
         getContentResolver().unregisterContentObserver(observer);
@@ -203,6 +206,15 @@ public final class MainActivity extends Activity {
         settingsCard.addView(shortcutRow,lp(-1,60));
         addWithMargins(body,settingsCard,0,18);
 
+        LinearLayout notificationCard = panel();
+        notificationControls = sw();
+        notificationCard.addView(labelSwitch("Notification bar controls", notificationControls),lp(-1,-2));
+        TextView notificationHint = text(
+                "Show Turn on/off, Dimmer and Brighter buttons in your notification shade. No display overlay.",
+                13,GREY,false);
+        addWithMargins(notificationCard, notificationHint,0,2);
+        addWithMargins(body,notificationCard,0,14);
+
         permissionBanner = text("",14,0xFFFFD9A1,false);
         permissionBanner.setBackground(rounded(0xFF29231B,14));
         permissionBanner.setPadding(d(16),d(14),d(16),d(14));
@@ -269,7 +281,39 @@ public final class MainActivity extends Activity {
             main.postDelayed(this::sync,500);
         });
         shortcutLabels.setOnClickListener(v -> shortcut.setChecked(!shortcut.isChecked()));
+        notificationControls.setOnCheckedChangeListener((button, checked) -> {
+            if (syncing) return;
+            if (checked && !NotificationController.canPost(this)) {
+                syncing = true;
+                notificationControls.setChecked(false);
+                syncing = false;
+                if (Build.VERSION.SDK_INT >= 33) {
+                    requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 310);
+                }
+                return;
+            }
+            NotificationController.setEnabled(this, checked);
+            if (checked) Toast.makeText(this,
+                    "Swipe down the notification shade to use your Extra Dim controls.",
+                    Toast.LENGTH_LONG).show();
+            sync();
+        });
     }
+    @Override public void onRequestPermissionsResult(
+            int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 310) {
+            if (grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                NotificationController.setEnabled(this, true);
+                Toast.makeText(this,"Notification controls enabled",Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this,"Allow notifications to use shade controls",Toast.LENGTH_LONG).show();
+            }
+            sync();
+        }
+    }
+
     private boolean shortcutEnabled() {
         AccessibilityManager mgr=(AccessibilityManager)getSystemService(ACCESSIBILITY_SERVICE);
         if (mgr==null) return false;
@@ -315,6 +359,7 @@ public final class MainActivity extends Activity {
         if (!draggingIntensity) intensity.setProgress(DimController.MAX-DimController.level(this));
         persist.setChecked(DimController.persistent(this));
         shortcut.setChecked(shortcutEnabled());
+        notificationControls.setChecked(NotificationController.enabled(this));
         boolean available = DimController.featureReportedAvailable(this);
         currentStatus.setText("Native dimming " + (DimController.active(this) ? "ON" : "OFF")
                 + "  ·  saved level " + DimController.level(this)
@@ -325,6 +370,7 @@ public final class MainActivity extends Activity {
         intensity.setEnabled(permitted);
         persist.setEnabled(permitted);
         shortcut.setEnabled(permitted);
+        notificationControls.setEnabled(permitted);
         permissionBanner.setVisibility(permitted?View.GONE:View.VISIBLE);
         if (!permitted) {
             permissionBanner.setText("One-time ADB setup required. Tap to copy the permission command, run it from PowerShell, then return to this screen.");

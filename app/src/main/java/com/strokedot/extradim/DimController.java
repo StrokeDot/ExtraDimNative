@@ -46,7 +46,10 @@ public final class DimController {
         try {
             boolean accepted = Settings.Secure.putInt(c.getContentResolver(), key, value);
             lastWriteIssue = accepted ? "" : "Android SettingsProvider rejected the write";
-            if (accepted) requestTileUpdate(c);
+            if (accepted) {
+                requestTileUpdate(c);
+                NotificationController.refresh(c);
+            }
             return accepted;
         } catch (RuntimeException e) {
             lastWriteIssue = e.getClass().getSimpleName()
