@@ -23,7 +23,7 @@ public class DimActionReceiver extends BroadcastReceiver {
         } else if(DIM_STRENGTH.equals(type)) {
             // Disabled dim bar has no action, as in the app UI.
             if(DimController.active(context)&&percent>=0&&percent<=100){
-                int value=DimController.MAX-
+                int value=DimController.MIN+
                     (DimController.MAX-DimController.MIN)*percent/100;
                 DimController.write(context,DimController.LEVEL,value);
             }

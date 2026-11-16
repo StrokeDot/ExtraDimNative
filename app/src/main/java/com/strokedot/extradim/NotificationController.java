@@ -59,8 +59,8 @@ public final class NotificationController {
             boolean dim=DimController.active(c);
             boolean warm=BlueLightController.active(c);
             int dimLevel=DimController.level(c);
-            // The app slider runs right-to-left for stronger dimming.
-            int dimPercent=Math.round(100f*(DimController.MAX-dimLevel)
+            // In the notification, higher percentage means stronger dimming.
+            int dimPercent=Math.round(100f*(dimLevel-DimController.MIN)
                     /(DimController.MAX-DimController.MIN));
             int warmPercent=BlueLightController.strength(c);
             Intent open=new Intent(c,MainActivity.class)
