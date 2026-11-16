@@ -11,6 +11,25 @@ android {
         versionCode 13
         versionName '0.13.0'
     }
+    // Long-lived private key provided ONLY through GitHub Actions secrets.
+    signingConfigs {
+        ota {
+            def keystoreFile = System.getenv("LUMASHADE_KEYSTORE")
+            if (keystoreFile) {
+                storeFile file(keystoreFile)
+                storePassword System.getenv("LUMASHADE_STORE_PASSWORD")
+                keyAlias System.getenv("LUMASHADE_KEY_ALIAS")
+                keyPassword System.getenv("LUMASHADE_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            // Normal installable APK: debug-only testOnly flag is excluded.
+            signingConfig signingConfigs.ota
+            minifyEnabled false
+        }
+    }
     buildFeatures {
         buildConfig true
     }
