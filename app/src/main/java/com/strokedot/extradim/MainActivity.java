@@ -29,6 +29,7 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ImageView;
 
 public final class MainActivity extends Activity {
     private static final int WHITE = 0xFFF4F4F6;
@@ -36,8 +37,11 @@ public final class MainActivity extends Activity {
     private static final int PANEL = 0xFF242424;
     private static final String GRANT =
         "adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS";
-    private Switch enabled, persist, shortcut, notificationControls;
-    private SeekBar intensity;
+    private Switch enabled, persist, shortcut, notificationControls, blueLight;
+    private SeekBar intensity, warmth;
+    private TextView warmthLabel;
+    private PhoneIllustrationView illustration;
+    private boolean draggingWarmth;
     private TextView permissionBanner, currentStatus, actionStatus;
     private boolean syncing;
     private boolean draggingIntensity;
@@ -78,6 +82,8 @@ public final class MainActivity extends Activity {
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.ACTIVE), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.LEVEL), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.PERSIST), false, observer);
+        getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.ACTIVE), false, observer);
+        getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.KELVIN), false, observer);
         sync();
         NotificationController.refresh(this);
     }
@@ -155,21 +161,25 @@ public final class MainActivity extends Activity {
         scroll.addView(outer);
         setContentView(scroll);
 
-        LinearLayout top= new LinearLayout(this);
+        LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        TextView back = text("‹",42,WHITE,false);
-        back.setGravity(Gravity.CENTER);
-        back.setContentDescription("Back");
-        back.setOnClickListener(v -> finish());
-        top.addView(back,lp(56,56));
-        TextView title = text("Extra dim",23,WHITE,true);
-        title.setGravity(Gravity.CENTER);
-        top.addView(title,new LinearLayout.LayoutParams(0,d(56),1));
-        top.addView(new View(this),lp(56,56));
-        body.addView(top,lp(-1,60));
+        top.setPadding(d(10),d(5),d(10),d(5));
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.ic_lumashade);
+        logo.setContentDescription("LumaShade logo");
+        top.addView(logo, lp(54,54));
+        LinearLayout heading = vertical();
+        TextView name = text("LumaShade",27,WHITE,true);
+        heading.addView(name,lp(-1,-2));
+        TextView subtitle = text("DISPLAY COMFORT",11,0xFF9DA7BC,true);
+        heading.addView(subtitle,lp(-1,-2));
+        LinearLayout.LayoutParams headingP = new LinearLayout.LayoutParams(0,-2,1);
+        headingP.leftMargin=d(12);
+        top.addView(heading,headingP);
+        body.addView(top,lp(-1,68));
 
-        TextView intro = text("Make your screen dimmer so it’s more comfortable to read",16,GREY,true);
+        TextView intro = text("Comfortable brightness and warmer colors, all in one place.",16,GREY,false);
         intro.setPadding(d(16),0,d(14),0);
         addWithMargins(body,intro,10,0);
         TextView device = text("Device: " + Build.MANUFACTURER + " " + Build.MODEL
@@ -177,7 +187,7 @@ public final class MainActivity extends Activity {
         device.setPadding(d(16),d(10),0,0);
         body.addView(device,lp(-1,-2));
 
-        PhoneIllustrationView illustration = new PhoneIllustrationView(this);
+        illustration = new PhoneIllustrationView(this);
         illustration.setContentDescription("Extra Dim preview. Long press to restore normal brightness.");
         illustration.setOnLongClickListener(v -> {
             boolean off = DimController.write(this,DimController.ACTIVE,0);
@@ -229,11 +239,37 @@ public final class MainActivity extends Activity {
         settingsCard.addView(shortcutRow,lp(-1,60));
         addWithMargins(body,settingsCard,0,18);
 
+        LinearLayout blueCard = panel();
+        blueLight = sw();
+        blueCard.addView(labelSwitch("Blue light filter",blueLight),lp(-1,-2));
+        TextView blueNote = text("Native Night Light • separate from Extra Dim",13,GREY,false);
+        addWithMargins(blueCard,blueNote,0,6);
+        warmthLabel = text("Warmth 50%",15,WHITE,false);
+        addWithMargins(blueCard,warmthLabel,6,4);
+        warmth = new SeekBar(this);
+        warmth.setMax(100);
+        warmth.setProgress(BlueLightController.strength(this));
+        blueCard.addView(warmth,lp(-1,48));
+        LinearLayout warmHints = new LinearLayout(this);
+        TextView cooler = text("Cooler",12,GREY,false);
+        TextView warmer = text("Warmer",12,GREY,false);
+        warmer.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        warmHints.addView(cooler,new LinearLayout.LayoutParams(0,d(20),1));
+        warmHints.addView(warmer,new LinearLayout.LayoutParams(0,d(20),1));
+        blueCard.addView(warmHints,lp(-1,-2));
+        TextView blueSupport = text(
+            BlueLightController.featureReportedAvailable(this)
+              ? "Uses Android's built-in color-temperature controls. The screen should turn warmer when enabled."
+              : "Android Night Light is not reported available by this ROM. Xiaomi Reading mode may use separate vendor controls; check the actual screen color.",
+            12,GREY,false);
+        addWithMargins(blueCard,blueSupport,6,4);
+        addWithMargins(body,blueCard,0,15);
+
         LinearLayout notificationCard = panel();
         notificationControls = sw();
         notificationCard.addView(labelSwitch("Notification bar controls", notificationControls),lp(-1,-2));
         TextView notificationHint = text(
-                "Show Turn on/off, Dimmer and Brighter buttons in your notification shade. No display overlay.",
+                "Quick controls: Blue light on/off, warmth presets and Settings. Dimmer controls stay inside this app.",
                 13,GREY,false);
         addWithMargins(notificationCard, notificationHint,0,2);
         addWithMargins(body,notificationCard,0,14);
@@ -320,6 +356,29 @@ public final class MainActivity extends Activity {
             main.postDelayed(this::sync,500);
         });
         shortcutLabels.setOnClickListener(v -> shortcut.setChecked(!shortcut.isChecked()));
+        blueLight.setOnCheckedChangeListener((view,checked) -> {
+            if (syncing) return;
+            applySetting("Blue light filter",BlueLightController.ACTIVE,checked ? 1 : 0);
+        });
+        warmth.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onStartTrackingTouch(SeekBar bar) { draggingWarmth=true; }
+            @Override public void onProgressChanged(SeekBar bar,int progress,boolean fromUser) {
+                if (fromUser) warmthLabel.setText("Warmth " + progress + "%");
+            }
+            @Override public void onStopTrackingTouch(SeekBar bar) {
+                draggingWarmth=false;
+                int chosen=bar.getProgress();
+                trace("Blue warmth selected " + chosen);
+                if (BlueLightController.setStrength(MainActivity.this,chosen)) {
+                    actionStatus.setText("Blue light warmth set to " + chosen
+                            + "%. Check whether the display color changed.");
+                } else {
+                    actionStatus.setText("Android rejected the color-temperature change. "
+                            + DimController.lastWriteIssue());
+                }
+                sync();
+            }
+        });
         notificationControls.setOnCheckedChangeListener((button, checked) -> {
             if (syncing) return;
             if (checked && !NotificationController.canPost(this)) {
@@ -371,7 +430,9 @@ public final class MainActivity extends Activity {
     private String snapshot() {
         return "active=" + DimController.read(this,DimController.ACTIVE,-1)
             + " level=" + DimController.read(this,DimController.LEVEL,-1)
-            + " persist=" + DimController.read(this,DimController.PERSIST,-1);
+            + " persist=" + DimController.read(this,DimController.PERSIST,-1)
+            + " night=" + DimController.read(this,BlueLightController.ACTIVE,-1)
+            + " kelvin=" + DimController.read(this,BlueLightController.KELVIN,-1);
     }
     private int visible(String key,int actual) {
         return pending.containsKey(key) ? pending.get(key) : actual;
@@ -418,6 +479,11 @@ public final class MainActivity extends Activity {
         }
         persist.setChecked(visible(DimController.PERSIST,
                 DimController.read(this,DimController.PERSIST,0))==1);
+        blueLight.setChecked(visible(BlueLightController.ACTIVE,
+                DimController.read(this,BlueLightController.ACTIVE,0)) == 1);
+        if (!draggingWarmth) warmth.setProgress(BlueLightController.strength(this));
+        warmthLabel.setText("Warmth " + BlueLightController.strength(this) + "%");
+        if (illustration != null) illustration.setWarmthEnabled(BlueLightController.active(this));
         shortcut.setChecked(shortcutEnabled());
         notificationControls.setChecked(NotificationController.enabled(this));
         boolean available = DimController.featureReportedAvailable(this);
@@ -433,6 +499,8 @@ public final class MainActivity extends Activity {
         boolean permitted=DimController.hasPermission(this);
         enabled.setEnabled(permitted);
         intensity.setEnabled(permitted);
+        blueLight.setEnabled(permitted);
+        warmth.setEnabled(permitted);
         persist.setEnabled(permitted);
         shortcut.setEnabled(permitted);
         notificationControls.setEnabled(permitted);

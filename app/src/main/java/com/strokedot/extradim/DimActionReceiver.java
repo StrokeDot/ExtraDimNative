@@ -4,31 +4,29 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-/** Notification button handler. One explicit user action causes at most two native writes. */
+/** Notification controls operate Night Light, not native Extra Dim. */
 public class DimActionReceiver extends BroadcastReceiver {
-    static final String TOGGLE = "com.strokedot.extradim.TOGGLE";
-    static final String DIMMER = "com.strokedot.extradim.DIMMER";
-    static final String BRIGHTER = "com.strokedot.extradim.BRIGHTER";
+    static final String FILTER_TOGGLE="com.strokedot.extradim.FILTER_TOGGLE";
+    static final String FILTER_STRENGTH="com.strokedot.extradim.FILTER_STRENGTH";
+    static final String EXTRA_STRENGTH="warmth_percent";
 
-    @Override public void onReceive(Context context, Intent intent) {
-        if (intent == null || !DimController.hasPermission(context)) {
+    @Override public void onReceive(Context context,Intent intent) {
+        if(intent==null||!DimController.hasPermission(context)) {
             NotificationController.refresh(context);
             return;
         }
-        String action = intent.getAction();
-        if (TOGGLE.equals(action)) {
-            DimController.toggle(context);
-        } else if (DIMMER.equals(action)) {
-            // Limit quick-action dimming to 85 to reduce accidental unreadable screens.
-            DimController.write(context, DimController.LEVEL,
-                    Math.min(85, DimController.level(context) + 10));
-            if (!DimController.active(context)) {
-                DimController.write(context, DimController.ACTIVE, 1);
+        String action=intent.getAction();
+        if(FILTER_TOGGLE.equals(action)) {
+            BlueLightController.toggle(context);
+        } else if(FILTER_STRENGTH.equals(action)) {
+            int strength=intent.getIntExtra(EXTRA_STRENGTH,-1);
+            if(strength>=0&&strength<=100) {
+                if(BlueLightController.setStrength(context,strength)
+                        &&!BlueLightController.active(context)) {
+                    DimController.write(context,BlueLightController.ACTIVE,1);
+                }
             }
-        } else if (BRIGHTER.equals(action)) {
-            DimController.write(context, DimController.LEVEL,
-                    Math.max(DimController.MIN, DimController.level(context) - 10));
         }
-        // DimController schedules the shade refresh after system propagation.
+        NotificationController.refresh(context);
     }
 }

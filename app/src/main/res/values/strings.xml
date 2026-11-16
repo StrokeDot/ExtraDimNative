@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">Extra Dim Native</string>
+    <string name="app_name">LumaShade</string>
     <string name="service_description">Allows the accessibility button to toggle native Extra Dim. This service does not inspect screen contents or create an overlay.</string>
 </resources>
