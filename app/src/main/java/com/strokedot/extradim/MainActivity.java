@@ -33,7 +33,7 @@ public final class MainActivity extends Activity {
         "adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS";
     private Switch enabled, persist, shortcut;
     private SeekBar intensity;
-    private TextView permissionBanner, currentStatus;
+    private TextView permissionBanner, currentStatus, actionStatus;
     private boolean syncing;
     private boolean draggingIntensity;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -226,6 +226,11 @@ public final class MainActivity extends Activity {
         });
         addWithMargins(body,reset,15,0);
 
+        actionStatus = text("Ready for a native dimming test. Changes are checked after a short delay.",13,0xFFBBD7FF,false);
+        actionStatus.setGravity(Gravity.CENTER);
+        actionStatus.setPadding(d(12),d(7),d(12),d(7));
+        addWithMargins(body,actionStatus,4,2);
+
         currentStatus = text("",12,GREY,false);
         currentStatus.setGravity(Gravity.CENTER);
         addWithMargins(body,currentStatus,4,4);
@@ -236,21 +241,26 @@ public final class MainActivity extends Activity {
 
         enabled.setOnCheckedChangeListener((b,isChecked) -> {
             if (syncing) return;
-            if (!DimController.write(this,DimController.ACTIVE,isChecked?1:0)) failed();
-            sync();
+            applySetting("Extra Dim",DimController.ACTIVE,isChecked ? 1 : 0);
         });
         intensity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar bar,int progress,boolean fromUser) {
-                if (fromUser && !DimController.write(MainActivity.this,DimController.LEVEL,
-                        DimController.MAX-progress)) failed();
+                // Do not flood HyperOS with writes on every slider movement.
+                if (fromUser && draggingIntensity) {
+                    actionStatus.setText("Selected intensity: " + (DimController.MAX - progress)
+                            + ". Release the slider to apply.");
+                }
             }
             @Override public void onStartTrackingTouch(SeekBar bar) { draggingIntensity=true; }
-            @Override public void onStopTrackingTouch(SeekBar bar) { draggingIntensity=false; sync(); }
+            @Override public void onStopTrackingTouch(SeekBar bar) {
+                draggingIntensity=false;
+                applySetting("Intensity",DimController.LEVEL,
+                        DimController.MAX - bar.getProgress());
+            }
         });
         persist.setOnCheckedChangeListener((b,isChecked) -> {
             if (syncing) return;
-            if (!DimController.write(this,DimController.PERSIST,isChecked?1:0)) failed();
-            sync();
+            applySetting("Restart persistence",DimController.PERSIST,isChecked ? 1 : 0);
         });
         shortcut.setOnCheckedChangeListener((b,isChecked) -> {
             if (syncing) return;
@@ -269,7 +279,34 @@ public final class MainActivity extends Activity {
         return false;
     }
     private void failed() {
-        Toast.makeText(this,"Native setting was not changed. Check the ADB permission and device compatibility.",Toast.LENGTH_LONG).show();
+        String issue = DimController.lastWriteIssue();
+        String message = "Android rejected the change"
+                + (issue.isEmpty() ? "." : ": " + issue);
+        if (actionStatus != null) actionStatus.setText(message);
+        Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+    }
+    private void applySetting(String label, String key, int requested) {
+        if (!DimController.write(this,key,requested)) {
+            failed();
+            sync();
+            return;
+        }
+        actionStatus.setText(label + ": write accepted; checking saved value...");
+        // Check after the SettingsProvider/HyperOS observers have had time to run.
+        main.postDelayed(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            int stored = DimController.read(this,key,Integer.MIN_VALUE);
+            if (stored != requested) {
+                String actual = stored == Integer.MIN_VALUE ? "not present" : Integer.toString(stored);
+                actionStatus.setText(label + " did not persist. Requested "
+                        + requested + ", Android now reports " + actual
+                        + ". HyperOS may be resetting the value.");
+            } else {
+                actionStatus.setText(label + " saved (" + stored
+                        + "). Check whether screen brightness actually changed.");
+            }
+            sync();
+        },650);
     }
     private void sync() {
         if (enabled==null) return;
