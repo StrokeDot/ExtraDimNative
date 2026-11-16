@@ -86,6 +86,7 @@ public final class MainActivity extends Activity {
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.KELVIN), false, observer);
         sync();
         NotificationController.refresh(this);
+        UpdateActivity.checkOnAppOpen(this);
     }
     @Override protected void onPause() {
         getContentResolver().unregisterContentObserver(observer);
