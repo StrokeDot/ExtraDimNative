@@ -57,6 +57,13 @@ jobs:
           test -s "$LUMASHADE_KEYSTORE"
           gradle :app:assembleRelease --no-daemon
           test -s app/build/outputs/apk/release/app-release.apk
+      - name: Verify APK signature before publication
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk
       - name: Publish APK and version metadata
         if: steps.signing.outputs.ready == 'true'
         run: |
