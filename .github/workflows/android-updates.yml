@@ -1,0 +1,110 @@
+name: Publish signed LumaShade update
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/android-updates.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      OTA_KEYSTORE_B64: ${{ secrets.LUMASHADE_KEYSTORE_BASE64 }}
+      LUMASHADE_STORE_PASSWORD: ${{ secrets.LUMASHADE_STORE_PASSWORD }}
+      LUMASHADE_KEY_ALIAS: ${{ secrets.LUMASHADE_KEY_ALIAS }}
+      LUMASHADE_KEY_PASSWORD: ${{ secrets.LUMASHADE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check private signing setup
+        id: signing
+        run: |
+          if [ -n "$OTA_KEYSTORE_B64" ] && [ -n "$LUMASHADE_STORE_PASSWORD" ] &&
+             [ -n "$LUMASHADE_KEY_ALIAS" ] && [ -n "$LUMASHADE_KEY_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Signed OTA updates need four LUMASHADE_* GitHub Actions secrets. Never commit the keystore or password."
+          fi
+      - uses: actions/setup-java@v4
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          gradle-version: '8.11.1'
+      - name: Restore app signing keystore
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          printf '%s' "$OTA_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/lumashade.jks"
+          chmod 600 "$RUNNER_TEMP/lumashade.jks"
+      - name: Build signed installable APK
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          LUMASHADE_KEYSTORE: ${{ runner.temp }}/lumashade.jks
+        run: |
+          test -s "$LUMASHADE_KEYSTORE"
+          gradle :app:assembleRelease --no-daemon
+          test -s app/build/outputs/apk/release/app-release.apk
+      - name: Publish APK and version metadata
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n "s/^[[:space:]]*versionName[[:space:]]*'\([^']*\)'.*/\1/p" app/build.gradle | head -n 1)
+          VERSION_CODE=$(sed -n 's/^[[:space:]]*versionCode[[:space:]]*\([0-9][0-9]*\).*/\1/p' app/build.gradle | head -n 1)
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$VERSION_CODE" =~ ^[0-9]+$ ]]
+          APKN="LumaShade-v$VERSION.apk"
+          APK="app/build/outputs/apk/release/app-release.apk"
+          SHA=$(sha256sum "$APK" | awk '{print $1}')
+          export VERSION VERSION_CODE APKN SHA
+          git fetch origin updates:refs/remotes/origin/updates 2>/dev/null || true
+          OUT="$RUNNER_TEMP/lumashade-updates"
+          if git show-ref --quiet refs/remotes/origin/updates; then
+            git worktree add -B updates "$OUT" origin/updates
+          else
+            git worktree add --detach "$OUT" HEAD
+            git -C "$OUT" checkout --orphan updates
+            git -C "$OUT" rm -rf . >/dev/null || true
+          fi
+          mkdir -p "$OUT/apks"
+          cp "$APK" "$OUT/apks/$APKN"
+          python3 - "$OUT/latest.json" <<'PY'
+          import json, os, sys
+          from datetime import datetime, timezone
+          metadata = {
+              "versionName": os.environ["VERSION"],
+              "versionCode": int(os.environ["VERSION_CODE"]),
+              "apkUrl": ("https://raw.githubusercontent.com/StrokeDot/ExtraDimNative"
+                         "/updates/apks/" + os.environ["APKN"]),
+              "sha256": os.environ["SHA"],
+              "publishedAt": datetime.now(timezone.utc).isoformat()
+          }
+          with open(sys.argv[1], "w", encoding="utf-8") as f:
+              json.dump(metadata, f, indent=2)
+              f.write("\n")
+          PY
+          git -C "$OUT" config user.name "github-actions[bot]"
+          git -C "$OUT" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$OUT" add latest.json "apks/$APKN"
+          if ! git -C "$OUT" diff --cached --quiet; then
+            git -C "$OUT" commit -m "Publish signed LumaShade v$VERSION"
+            git -C "$OUT" push origin HEAD:refs/heads/updates
+          fi
+      - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          name: LumaShade-installable-signed-APK
+          if-no-files-found: error
+          path: app/build/outputs/apk/release/app-release.apk
