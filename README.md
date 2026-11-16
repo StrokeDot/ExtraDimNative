@@ -43,3 +43,26 @@ No analytics or remote service receives this report.
 
 The ADB recovery command remains:
 adb -d shell settings put secure reduce_bright_colors_activated 0
+
+## v0.8: Android 16 hidden-key read fix (development APK)
+
+The v0.7 device report showed that all three Extra Dim `Settings.Secure.getInt`
+reads returned the fallback -1 even after `Settings.Secure.putInt` succeeded
+and the screen visibly dimmed. These AOSP hidden settings are not @Readable.
+Android 12+ Settings.java blocks ordinary third-party apps from reading them.
+Android 16 exempts apps carrying the FLAG_TEST_ONLY application flag.
+
+v0.8 adds `android:testOnly=true` in `app/src/debug/AndroidManifest.xml` only.
+This is a DEBUG/DEVELOPMENT workaround, **not a production release design**.
+It is not distributable via Play Store and cannot be installed by tapping the APK.
+
+With the APK saved to Downloads/Apps in Windows PowerShell:
+
+    & $adb -d install -r -t "$env:USERPROFILE\Downloads\Apps\ExtraDimNative-v0.8-testonly-debug.apk"
+    & $adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS
+
+If the debug signature differs, disable Extra Dim through the recovery command,
+uninstall the old app, then repeat install with `-t` and grant permission.
+If reads remain -1, use Copy Extra Dim diagnostics: it now includes the
+read exception type/message. A future production edition requires a suitable
+native state access or companion bridge; do not rely on the test-only exemption.
