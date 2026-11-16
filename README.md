@@ -66,3 +66,20 @@ uninstall the old app, then repeat install with `-t` and grant permission.
 If reads remain -1, use Copy Extra Dim diagnostics: it now includes the
 read exception type/message. A future production edition requires a suitable
 native state access or companion bridge; do not rely on the test-only exemption.
+
+## LumaShade in-app updater (v0.11)
+
+The Updates screen checks public GitHub Releases for a newer semantic version and
+can download the APK through Android DownloadManager. If no GitHub release has
+been published, it checks the source version and points to GitHub Actions.
+Before offering Android installation, it verifies that the APK package name and
+signer match the installed app. It never silently installs or uninstalls an app.
+
+**Important development limitation:** The current debug APK uses the
+`android:testOnly=true` workaround for reading hidden Android 16 Extra Dim
+settings. Standard Android package installation normally cannot install
+test-only builds; ADB `install -r -t` is required. Also, ephemeral CI debug
+signing certificates prevent upgrades unless a persistent keystore is set up.
+For production self-updating releases we must configure stable private signing
+credentials in GitHub Actions secrets and replace the test-only read workaround
+with a production-compatible solution. Do not commit a private keystore.

@@ -261,6 +261,18 @@ public final class MainActivity extends Activity {
                 13,GREY,false);
         addWithMargins(notificationCard, notificationHint,0,2);
         addWithMargins(body,notificationCard,0,14);
+        LinearLayout updateCard = panel();
+        TextView updateTitle=text("Updates",16,WHITE,true);
+        updateCard.addView(updateTitle,lp(-1,-2));
+        TextView updateSub=text("Check GitHub releases and get new versions from inside LumaShade.",13,GREY,false);
+        addWithMargins(updateCard,updateSub,4,8);
+        TextView updateButton=text("Check for updates",15,0xFFBBD7FF,true);
+        updateButton.setGravity(Gravity.CENTER);
+        updateButton.setPadding(d(12),d(12),d(12),d(12));
+        updateButton.setBackground(rounded(0xFF2D3446,12));
+        updateButton.setOnClickListener(v -> startActivity(new Intent(this,UpdateActivity.class)));
+        updateCard.addView(updateButton,lp(-1,-2));
+        addWithMargins(body,updateCard,0,14);
 
         permissionBanner = text("",14,0xFFFFD9A1,false);
         permissionBanner.setBackground(rounded(0xFF29231B,14));
