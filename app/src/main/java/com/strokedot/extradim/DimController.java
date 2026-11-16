@@ -22,9 +22,21 @@ public final class DimController {
         return c.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
                 == PackageManager.PERMISSION_GRANTED;
     }
+    // Android 16 restricts reading hidden Extra Dim keys to system or test-only apps.
+    // Our debug variant is explicitly testOnly. Record any remaining read errors.
+    private static volatile String lastReadIssue = "";
+    static String lastReadIssue() { return lastReadIssue; }
     static int read(Context c, String key, int fallback) {
-        try { return Settings.Secure.getInt(c.getContentResolver(), key, fallback); }
-        catch (Exception e) { return fallback; }
+        try {
+            int value = Settings.Secure.getInt(c.getContentResolver(), key, fallback);
+            lastReadIssue = "";
+            return value;
+        } catch (RuntimeException e) {
+            lastReadIssue = key + ": " + e.getClass().getSimpleName()
+                    + (e.getMessage() == null ? "" : " - " + e.getMessage());
+            android.util.Log.w("ExtraDimNative",lastReadIssue);
+            return fallback;
+        }
     }
     static boolean featureReportedAvailable(Context c) {
         try {

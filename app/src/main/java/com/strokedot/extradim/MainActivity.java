@@ -278,7 +278,8 @@ public final class MainActivity extends Activity {
                 + "\nDevice: " + Build.MANUFACTURER + " " + Build.MODEL
                 + " Android " + Build.VERSION.RELEASE + " user=" + (Process.myUid()/100000)
                 + "\nSecure grant=" + DimController.hasPermission(this)
-                + "\nCurrent: " + snapshot() + "\n" + history;
+                + "\nCurrent: " + snapshot()
+                + "\nRead issue: " + DimController.lastReadIssue() + "\n" + history;
             ClipboardManager cb = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cb.setPrimaryClip(ClipData.newPlainText("Extra Dim diagnostics",report));
             Toast.makeText(this,"Diagnostics copied",Toast.LENGTH_SHORT).show();
@@ -424,6 +425,11 @@ public final class MainActivity extends Activity {
                 + "  ·  saved level " + DimController.level(this)
                 + "  ·  " + (DimController.hasPermission(this) ? "ADB grant ready" : "ADB grant needed")
                 + (available ? "" : "\nNative feature not reported as available on this device; verify visually."));
+        String readIssue = DimController.lastReadIssue();
+        if (readIssue != null && !readIssue.isEmpty()) {
+            currentStatus.setText("System blocked reading native Extra Dim state. "
+                    + "Tap Copy Extra Dim diagnostics for the exact error.");
+        }
         boolean permitted=DimController.hasPermission(this);
         enabled.setEnabled(permitted);
         intensity.setEnabled(permitted);
