@@ -22,9 +22,21 @@ public final class DimController {
         return c.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
                 == PackageManager.PERMISSION_GRANTED;
     }
-    // Android 16 restricts reading hidden Extra Dim keys to system or test-only apps.
-    // Our debug variant is explicitly testOnly. Record any remaining read errors.
+    // Production Android 16 apps cannot read hidden native Extra Dim keys.
+    // Fall back to the last value that THIS app successfully wrote. This is
+    // app-owned state, not authoritative state when external Android Settings,
+    // Xiaomi Reading mode or another app changes the same hidden key.
+    private static final String SHADOW_PREFS = "last_applied_native_settings";
     private static volatile String lastReadIssue = "";
+    private static int localValue(Context c,String key,int fallback) {
+        return c.getSharedPreferences(SHADOW_PREFS,Context.MODE_PRIVATE)
+                .getInt(key,fallback);
+    }
+    private static void remember(Context c,String key,int value) {
+        c.getSharedPreferences(SHADOW_PREFS,Context.MODE_PRIVATE).edit()
+                .putInt(key,value).apply();
+    }
+    static boolean isShadowState() { return !BuildConfig.DEBUG; }
     static String lastReadIssue() { return lastReadIssue; }
     static int read(Context c, String key, int fallback) {
         try {
@@ -35,7 +47,7 @@ public final class DimController {
             lastReadIssue = key + ": " + e.getClass().getSimpleName()
                     + (e.getMessage() == null ? "" : " - " + e.getMessage());
             android.util.Log.w("ExtraDimNative",lastReadIssue);
-            return fallback;
+            return localValue(c,key,fallback);
         }
     }
     static boolean featureReportedAvailable(Context c) {
@@ -61,6 +73,7 @@ public final class DimController {
             boolean accepted = Settings.Secure.putInt(c.getContentResolver(), key, value);
             lastWriteIssue = accepted ? "" : "Android SettingsProvider rejected the write";
             if (accepted) {
+                remember(c,key,value);
                 Context app = c.getApplicationContext();
                 // Defer shade reads; the service may still be processing the write.
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {

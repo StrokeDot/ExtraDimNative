@@ -271,7 +271,7 @@ public final class MainActivity extends Activity {
         LinearLayout updateCard = panel();
         TextView updateTitle=text("Updates",16,WHITE,true);
         updateCard.addView(updateTitle,lp(-1,-2));
-        TextView updateSub=text("Check GitHub releases and get new versions from inside LumaShade.",13,GREY,false);
+        TextView updateSub=text("Check for app updates and install signed APKs directly from LumaShade.",13,GREY,false);
         addWithMargins(updateCard,updateSub,4,8);
         TextView updateButton=text("Check for updates",15,0xFFBBD7FF,true);
         updateButton.setGravity(Gravity.CENTER);
@@ -480,7 +480,10 @@ public final class MainActivity extends Activity {
         if (!finalCheck) return;
         pending.remove(key);
         actionStatus.setText(observed == wanted
-                ? label + " saved as " + wanted + ". Check whether the display changed."
+                ? (DimController.isShadowState()
+                    ? label + " applied. Remembered " + wanted
+                        + " locally (Android hides the setting from regular apps)."
+                    : label + " saved as " + wanted + ". Check whether the display changed.")
                 : label + " reverted (requested " + wanted + ", Android reports " + observed
                     + "). Tap Copy Extra Dim diagnostics.");
         sync();
