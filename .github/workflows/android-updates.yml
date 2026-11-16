@@ -102,9 +102,16 @@ jobs:
             git -C "$OUT" commit -m "Publish signed LumaShade v$VERSION"
             git -C "$OUT" push origin HEAD:refs/heads/updates
           fi
+      - name: Name signed APK for downloads
+        if: steps.signing.outputs.ready == 'true'
+        run: |
+          VERSION=$(sed -n "s/^[[:space:]]*versionName[[:space:]]*'\\([^']*\\)'.*/\\1/p" app/build.gradle | head -n 1)
+          test -n "$VERSION"
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/LumaShade-v$VERSION.apk"
       - uses: actions/upload-artifact@v4
         if: steps.signing.outputs.ready == 'true'
         with:
           name: LumaShade-installable-signed-APK
           if-no-files-found: error
-          path: app/build/outputs/apk/release/app-release.apk
+          path: dist/LumaShade-v*.apk
