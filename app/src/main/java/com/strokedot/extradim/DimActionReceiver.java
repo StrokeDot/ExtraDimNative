@@ -29,6 +29,6 @@ public class DimActionReceiver extends BroadcastReceiver {
             DimController.write(context, DimController.LEVEL,
                     Math.max(DimController.MIN, DimController.level(context) - 10));
         }
-        NotificationController.refresh(context);
+        // DimController schedules the shade refresh after system propagation.
     }
 }

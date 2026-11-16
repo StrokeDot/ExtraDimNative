@@ -27,3 +27,19 @@ adb -d shell settings put secure reduce_bright_colors_activated 0
 Do not run commands on an unidentified emulator/phone; use `adb -s SERIAL` if multiple are connected.
 
 MIT license. Development project, not a completed production release.
+
+
+## v0.7 test: detecting settings that revert
+
+Extra Dim Native v0.7 retains the requested UI value while a secure-setting write
+is processed. A settings observer will no longer immediately snap the slider back.
+The app checks the saved value after 300 ms and 1600 ms, without retrying or
+fighting any system service that changes it.
+
+If a control reverts or the screen does not change despite a saved value, tap
+"Copy Extra Dim diagnostics" in the app. This produces a local short report
+with setting values, the user ID of the app, requests, and observed changes.
+No analytics or remote service receives this report.
+
+The ADB recovery command remains:
+adb -d shell settings put secure reduce_bright_colors_activated 0

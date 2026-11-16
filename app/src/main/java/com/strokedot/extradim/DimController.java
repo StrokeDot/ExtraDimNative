@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.provider.Settings;
 import android.service.quicksettings.TileService;
+import android.os.Handler;
+import android.os.Looper;
 
 public final class DimController {
     private DimController() {}
@@ -47,8 +49,12 @@ public final class DimController {
             boolean accepted = Settings.Secure.putInt(c.getContentResolver(), key, value);
             lastWriteIssue = accepted ? "" : "Android SettingsProvider rejected the write";
             if (accepted) {
-                requestTileUpdate(c);
-                NotificationController.refresh(c);
+                Context app = c.getApplicationContext();
+                // Defer shade reads; the service may still be processing the write.
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    requestTileUpdate(app);
+                    NotificationController.refresh(app);
+                }, 350);
             }
             return accepted;
         } catch (RuntimeException e) {

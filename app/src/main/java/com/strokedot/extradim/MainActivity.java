@@ -15,6 +15,9 @@ import android.os.Bundle;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import java.util.HashMap;
+import android.os.Process;
+import android.os.Build;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
@@ -38,6 +41,9 @@ public final class MainActivity extends Activity {
     private TextView permissionBanner, currentStatus, actionStatus;
     private boolean syncing;
     private boolean draggingIntensity;
+    private final HashMap<String,Integer> pending = new HashMap<>();
+    private final HashMap<String,Integer> generations = new HashMap<>();
+    private String history = "";
     private final Handler main = new Handler(Looper.getMainLooper());
     private ContentObserver observer;
 
@@ -47,8 +53,25 @@ public final class MainActivity extends Activity {
         getWindow().setNavigationBarColor(Color.BLACK);
         buildScreen();
         observer = new ContentObserver(main) {
-            @Override public void onChange(boolean selfChange) { main.post(MainActivity.this::sync); }
+            @Override public void onChange(boolean selfChange) { onExternalChange("unknown"); }
+            @Override public void onChange(boolean selfChange, android.net.Uri uri) {
+                onExternalChange(uri == null ? "unknown" : uri.getLastPathSegment());
+            }
         };
+        trace("opened (app Android user " + (Process.myUid()/100000) + ")");
+    }
+    private void trace(String entry) {
+        String stamp = new java.text.SimpleDateFormat("HH:mm:ss.SSS",java.util.Locale.US)
+                .format(new java.util.Date());
+        history += stamp + " " + entry + "\n";
+        if (history.length() > 6500) history = history.substring(history.length()-6500);
+        android.util.Log.i("ExtraDimNative",entry);
+    }
+    private void onExternalChange(String key) {
+        trace("observer " + key + ": active=" + DimController.read(this,DimController.ACTIVE,-1)
+                + " level=" + DimController.read(this,DimController.LEVEL,-1)
+                + " persist=" + DimController.read(this,DimController.PERSIST,-1));
+        main.post(this::sync);
     }
     @Override protected void onResume() {
         super.onResume();
@@ -246,6 +269,21 @@ public final class MainActivity extends Activity {
         currentStatus = text("",12,GREY,false);
         currentStatus.setGravity(Gravity.CENTER);
         addWithMargins(body,currentStatus,4,4);
+        TextView diagnostic = text("Copy Extra Dim diagnostics",14,0xFFBBD7FF,true);
+        diagnostic.setGravity(Gravity.CENTER);
+        diagnostic.setPadding(d(14),d(12),d(14),d(12));
+        diagnostic.setBackground(rounded(0xFF252B35,14));
+        diagnostic.setOnClickListener(v -> {
+            String report = "Extra Dim Native " + BuildConfig.VERSION_NAME
+                + "\nDevice: " + Build.MANUFACTURER + " " + Build.MODEL
+                + " Android " + Build.VERSION.RELEASE + " user=" + (Process.myUid()/100000)
+                + "\nSecure grant=" + DimController.hasPermission(this)
+                + "\nCurrent: " + snapshot() + "\n" + history;
+            ClipboardManager cb = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            cb.setPrimaryClip(ClipData.newPlainText("Extra Dim diagnostics",report));
+            Toast.makeText(this,"Diagnostics copied",Toast.LENGTH_SHORT).show();
+        });
+        addWithMargins(body,diagnostic,6,9);
         TextView safety = text("Keep normal brightness above minimum while testing. If the display becomes unreadable, use the restore control or the ADB recovery command.",12,GREY,false);
         safety.setGravity(Gravity.CENTER);
         safety.setPadding(d(16),d(6),d(16),0);
@@ -329,35 +367,56 @@ public final class MainActivity extends Activity {
         if (actionStatus != null) actionStatus.setText(message);
         Toast.makeText(this,message,Toast.LENGTH_LONG).show();
     }
+    private String snapshot() {
+        return "active=" + DimController.read(this,DimController.ACTIVE,-1)
+            + " level=" + DimController.read(this,DimController.LEVEL,-1)
+            + " persist=" + DimController.read(this,DimController.PERSIST,-1);
+    }
+    private int visible(String key,int actual) {
+        return pending.containsKey(key) ? pending.get(key) : actual;
+    }
     private void applySetting(String label, String key, int requested) {
-        if (!DimController.write(this,key,requested)) {
+        int before = DimController.read(this,key,-1);
+        int generation = generations.getOrDefault(key,0) + 1;
+        generations.put(key,generation);
+        pending.put(key,requested);
+        trace("requested " + key + "=" + requested + " previous=" + before);
+        boolean accepted = DimController.write(this,key,requested);
+        trace("provider accepted=" + accepted + " immediate=" + DimController.read(this,key,-1)
+                + " reason=" + DimController.lastWriteIssue());
+        if (!accepted) {
+            pending.remove(key);
             failed();
             sync();
             return;
         }
-        actionStatus.setText(label + ": write accepted; checking saved value...");
-        // Check after the SettingsProvider/HyperOS observers have had time to run.
-        main.postDelayed(() -> {
-            if (isFinishing() || isDestroyed()) return;
-            int stored = DimController.read(this,key,Integer.MIN_VALUE);
-            if (stored != requested) {
-                String actual = stored == Integer.MIN_VALUE ? "not present" : Integer.toString(stored);
-                actionStatus.setText(label + " did not persist. Requested "
-                        + requested + ", Android now reports " + actual
-                        + ". HyperOS may be resetting the value.");
-            } else {
-                actionStatus.setText(label + " saved (" + stored
-                        + "). Check whether screen brightness actually changed.");
-            }
-            sync();
-        },650);
+        actionStatus.setText(label + " requested; verifying the system...");
+        main.postDelayed(() -> verify(label,key,requested,generation,false),300);
+        main.postDelayed(() -> verify(label,key,requested,generation,true),1600);
+    }
+    private void verify(String label,String key,int wanted,int generation,boolean finalCheck) {
+        if (isFinishing() || isDestroyed() || generations.getOrDefault(key,0)!=generation) return;
+        int observed = DimController.read(this,key,-1);
+        trace((finalCheck ? "final " : "early ") + key + " wanted=" + wanted + " actual=" + observed);
+        if (!finalCheck) return;
+        pending.remove(key);
+        actionStatus.setText(observed == wanted
+                ? label + " saved as " + wanted + ". Check whether the display changed."
+                : label + " reverted (requested " + wanted + ", Android reports " + observed
+                    + "). Tap Copy Extra Dim diagnostics.");
+        sync();
     }
     private void sync() {
         if (enabled==null) return;
         syncing=true;
-        enabled.setChecked(DimController.active(this));
-        if (!draggingIntensity) intensity.setProgress(DimController.MAX-DimController.level(this));
-        persist.setChecked(DimController.persistent(this));
+        enabled.setChecked(visible(DimController.ACTIVE,
+                DimController.read(this,DimController.ACTIVE,0))==1);
+        if (!draggingIntensity) {
+            int desired = visible(DimController.LEVEL,DimController.level(this));
+            intensity.setProgress(DimController.MAX-Math.max(DimController.MIN,Math.min(DimController.MAX,desired)));
+        }
+        persist.setChecked(visible(DimController.PERSIST,
+                DimController.read(this,DimController.PERSIST,0))==1);
         shortcut.setChecked(shortcutEnabled());
         notificationControls.setChecked(NotificationController.enabled(this));
         boolean available = DimController.featureReportedAvailable(this);
