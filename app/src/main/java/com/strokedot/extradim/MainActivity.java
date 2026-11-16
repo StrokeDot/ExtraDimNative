@@ -154,38 +154,26 @@ public final class MainActivity extends Activity {
         scroll.setBackgroundColor(Color.BLACK);
         FrameLayout outer = new FrameLayout(this);
         LinearLayout body = vertical();
-        body.setPadding(d(12),d(16),d(12),d(24));
+        body.setPadding(d(12),d(38),d(12),d(24));
         int width = Math.min(d(560),getResources().getDisplayMetrics().widthPixels);
         FrameLayout.LayoutParams bodyParams = new FrameLayout.LayoutParams(width, -2,Gravity.TOP|Gravity.CENTER_HORIZONTAL);
         outer.addView(body,bodyParams);
         scroll.addView(outer);
         setContentView(scroll);
 
+        // Center the app identity below the notification/status area.
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
-        top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(d(10),d(5),d(10),d(5));
+        top.setGravity(Gravity.CENTER);
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.ic_lumashade);
-        logo.setContentDescription("LumaShade logo");
-        top.addView(logo, lp(54,54));
-        LinearLayout heading = vertical();
-        TextView name = text("LumaShade",27,WHITE,true);
-        heading.addView(name,lp(-1,-2));
-        TextView subtitle = text("DISPLAY COMFORT",11,0xFF9DA7BC,true);
-        heading.addView(subtitle,lp(-1,-2));
-        LinearLayout.LayoutParams headingP = new LinearLayout.LayoutParams(0,-2,1);
-        headingP.leftMargin=d(12);
-        top.addView(heading,headingP);
-        body.addView(top,lp(-1,68));
-
-        TextView intro = text("Comfortable brightness and warmer colors, all in one place.",16,GREY,false);
-        intro.setPadding(d(16),0,d(14),0);
-        addWithMargins(body,intro,10,0);
-        TextView device = text("Device: " + Build.MANUFACTURER + " " + Build.MODEL
-                + "  ·  Android " + Build.VERSION.RELEASE,12,GREY,false);
-        device.setPadding(d(16),d(10),0,0);
-        body.addView(device,lp(-1,-2));
+        logo.setContentDescription("LumaShade");
+        top.addView(logo,lp(56,56));
+        TextView title = text("LumaShade",28,WHITE,true);
+        LinearLayout.LayoutParams titleP = lp(-2,-2);
+        titleP.leftMargin = d(12);
+        top.addView(title,titleP);
+        body.addView(top,lp(-1,74));
 
         illustration = new PhoneIllustrationView(this);
         illustration.setContentDescription("Extra Dim preview. Long press to restore normal brightness.");
@@ -197,7 +185,7 @@ public final class MainActivity extends Activity {
             else failed();
             return true;
         });
-        addWithMargins(body,illustration,26,0);
+        addWithMargins(body,illustration,10,0);
 
         LinearLayout masterCard = panel();
         enabled = sw();
@@ -259,8 +247,8 @@ public final class MainActivity extends Activity {
         blueCard.addView(warmHints,lp(-1,-2));
         TextView blueSupport = text(
             BlueLightController.featureReportedAvailable(this)
-              ? "Uses Android's built-in color-temperature controls. The screen should turn warmer when enabled."
-              : "Android Night Light is not reported available by this ROM. Xiaomi Reading mode may use separate vendor controls; check the actual screen color.",
+              ? "Uses Android Night Light. If the display color does not change, Xiaomi Reading mode may use different controls."
+              : "Android Night Light is not reported available by this ROM. Xiaomi Reading mode may use different vendor controls.",
             12,GREY,false);
         addWithMargins(blueCard,blueSupport,6,4);
         addWithMargins(body,blueCard,0,15);
@@ -269,7 +257,7 @@ public final class MainActivity extends Activity {
         notificationControls = sw();
         notificationCard.addView(labelSwitch("Notification bar controls", notificationControls),lp(-1,-2));
         TextView notificationHint = text(
-                "Quick controls: Blue light on/off, warmth presets and Settings. Dimmer controls stay inside this app.",
+                "Quick controls for Extra Dim and blue light, with blue and amber intensity bars. Tap a bar segment to select a level.",
                 13,GREY,false);
         addWithMargins(notificationCard, notificationHint,0,2);
         addWithMargins(body,notificationCard,0,14);
@@ -310,7 +298,7 @@ public final class MainActivity extends Activity {
         diagnostic.setPadding(d(14),d(12),d(14),d(12));
         diagnostic.setBackground(rounded(0xFF252B35,14));
         diagnostic.setOnClickListener(v -> {
-            String report = "Extra Dim Native " + BuildConfig.VERSION_NAME
+            String report = "LumaShade " + BuildConfig.VERSION_NAME
                 + "\nDevice: " + Build.MANUFACTURER + " " + Build.MODEL
                 + " Android " + Build.VERSION.RELEASE + " user=" + (Process.myUid()/100000)
                 + "\nSecure grant=" + DimController.hasPermission(this)
@@ -370,8 +358,11 @@ public final class MainActivity extends Activity {
                 int chosen=bar.getProgress();
                 trace("Blue warmth selected " + chosen);
                 if (BlueLightController.setStrength(MainActivity.this,chosen)) {
-                    actionStatus.setText("Blue light warmth set to " + chosen
-                            + "%. Check whether the display color changed.");
+                    int actualKelvin = DimController.read(MainActivity.this,
+                            BlueLightController.KELVIN,-1);
+                    actionStatus.setText("Night Light " + chosen + "% ("
+                            + actualKelvin + " K saved). If the color stays unchanged, "
+                            + "the Xiaomi display pipeline may ignore this setting.");
                 } else {
                     actionStatus.setText("Android rejected the color-temperature change. "
                             + DimController.lastWriteIssue());
@@ -498,9 +489,15 @@ public final class MainActivity extends Activity {
         }
         boolean permitted=DimController.hasPermission(this);
         enabled.setEnabled(permitted);
-        intensity.setEnabled(permitted);
+        // Only the strength sliders depend on their respective active toggles.
+        boolean dimOn = visible(DimController.ACTIVE,
+                DimController.read(this,DimController.ACTIVE,0)) == 1;
+        boolean warmOn = visible(BlueLightController.ACTIVE,
+                DimController.read(this,BlueLightController.ACTIVE,0)) == 1;
+        intensity.setEnabled(permitted && dimOn);
         blueLight.setEnabled(permitted);
-        warmth.setEnabled(permitted);
+        warmth.setEnabled(permitted && warmOn);
+        warmthLabel.setTextColor(permitted && warmOn ? WHITE : GREY);
         persist.setEnabled(permitted);
         shortcut.setEnabled(permitted);
         notificationControls.setEnabled(permitted);
