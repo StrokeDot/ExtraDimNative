@@ -1,6 +1,5 @@
 package com.strokedot.extradim;
 
-import android.accessibilityservice.AccessibilityServiceInfo;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
@@ -21,7 +20,6 @@ import android.os.Build;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
-import android.view.accessibility.AccessibilityManager;
 import android.widget.LinearLayout;
 import android.widget.FrameLayout;
 import android.widget.ScrollView;
@@ -37,7 +35,7 @@ public final class MainActivity extends Activity {
     private static final int PANEL = 0xFF242424;
     private static final String GRANT =
         "adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS";
-    private Switch enabled, persist, shortcut, notificationControls, pinnedNotification, blueLight;
+    private Switch enabled, persist, notificationControls, pinnedNotification, blueLight;
     private SeekBar intensity, warmth;
     private TextView warmthLabel;
     private PhoneIllustrationView illustration;
@@ -216,16 +214,16 @@ public final class MainActivity extends Activity {
         settingsCard.addView(labelSwitch("Keep on after device restarts",persist),lp(-1,-2));
         addGap(settingsCard,20);
 
-        LinearLayout shortcutRow=new LinearLayout(this);
-        shortcutRow.setOrientation(LinearLayout.HORIZONTAL);
-        shortcutRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout shortcutLabels = vertical();
-        shortcutLabels.addView(text("Extra dim shortcut",16,WHITE,true),lp(-1,-2));
-        shortcutLabels.addView(text("Accessibility button",14,GREY,false),lp(-1,-2));
-        shortcutRow.addView(shortcutLabels,new LinearLayout.LayoutParams(0,-2,1));
-        shortcut=sw();
-        shortcutRow.addView(shortcut,lp(-2,-2));
-        settingsCard.addView(shortcutRow,lp(-1,60));
+        TextView systemShortcut=text("Android Extra Dim shortcut (optional)",15,WHITE,true);
+        systemShortcut.setPadding(d(8),d(8),d(8),d(6));
+        systemShortcut.setOnClickListener(v ->
+                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
+        settingsCard.addView(systemShortcut,lp(-1,-2));
+        TextView shortcutHint=text(
+            "Opens Android's accessibility settings for the built-in Extra Dim "
+            +"shortcut, if available. LumaShade itself does not use Accessibility.",
+            12,GREY,false);
+        addWithMargins(settingsCard,shortcutHint,0,8);
         addWithMargins(body,settingsCard,0,18);
 
         LinearLayout blueCard = panel();
@@ -258,7 +256,7 @@ public final class MainActivity extends Activity {
         notificationControls = sw();
         notificationCard.addView(labelSwitch("Notification bar controls", notificationControls),lp(-1,-2));
         TextView notificationHint = text(
-                "Tap a position on the blue or amber track, or use − / +. Swipe gestures cannot adjust a notification bar.",
+                "Tap the moon to toggle Extra Dim, the sun to toggle blue light, or Settings to adjust intensity.",
                 13,GREY,false);
         addWithMargins(notificationCard, notificationHint,0,2);
         addGap(notificationCard,8);
@@ -357,13 +355,6 @@ public final class MainActivity extends Activity {
             if (syncing) return;
             applySetting("Restart persistence",DimController.PERSIST,isChecked ? 1 : 0);
         });
-        shortcut.setOnCheckedChangeListener((b,isChecked) -> {
-            if (syncing) return;
-            Toast.makeText(this,"Enable or disable ‘Extra dim shortcut’ in Accessibility settings",Toast.LENGTH_LONG).show();
-            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-            main.postDelayed(this::sync,500);
-        });
-        shortcutLabels.setOnClickListener(v -> shortcut.setChecked(!shortcut.isChecked()));
         blueLight.setOnCheckedChangeListener((view,checked) -> {
             if (syncing) return;
             applySetting("Blue light filter",BlueLightController.ACTIVE,checked ? 1 : 0);
@@ -410,7 +401,7 @@ public final class MainActivity extends Activity {
             }
             NotificationController.setEnabled(this, checked);
             if (checked) Toast.makeText(this,
-                    "Swipe down the notification shade to use your Extra Dim controls.",
+                    "Swipe down to toggle Extra Dim and blue light, or open Settings.",
                     Toast.LENGTH_LONG).show();
             sync();
         });
@@ -430,14 +421,6 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private boolean shortcutEnabled() {
-        AccessibilityManager mgr=(AccessibilityManager)getSystemService(ACCESSIBILITY_SERVICE);
-        if (mgr==null) return false;
-        for (AccessibilityServiceInfo info : mgr.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)) {
-            if (info.getId()!=null && info.getId().contains(getPackageName()+"/")) return true;
-        }
-        return false;
-    }
     private void failed() {
         String issue = DimController.lastWriteIssue();
         String message = "Android rejected the change"
@@ -505,7 +488,6 @@ public final class MainActivity extends Activity {
         if (!draggingWarmth) warmth.setProgress(BlueLightController.strength(this));
         warmthLabel.setText("Warmth " + BlueLightController.strength(this) + "%");
         if (illustration != null) illustration.setWarmthEnabled(BlueLightController.active(this));
-        shortcut.setChecked(shortcutEnabled());
         notificationControls.setChecked(NotificationController.enabled(this));
         pinnedNotification.setChecked(NotificationController.pinned(this));
         boolean available = DimController.featureReportedAvailable(this);
@@ -530,7 +512,6 @@ public final class MainActivity extends Activity {
         warmth.setEnabled(permitted && warmOn);
         warmthLabel.setTextColor(permitted && warmOn ? WHITE : GREY);
         persist.setEnabled(permitted);
-        shortcut.setEnabled(permitted);
         notificationControls.setEnabled(permitted);
         pinnedNotification.setEnabled(NotificationController.enabled(this));
         permissionBanner.setVisibility(permitted?View.GONE:View.VISIBLE);
