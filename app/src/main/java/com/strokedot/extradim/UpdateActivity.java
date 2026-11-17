@@ -37,6 +37,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.util.Locale;
+import java.nio.charset.StandardCharsets;
+import android.util.Base64;
 
 /**
  * LumaShade self-updater. No formal GitHub release required: a signed APK and
@@ -44,8 +46,16 @@ import java.util.Locale;
  * Does not attempt silent installation, permission bypass or signature override.
  */
 public final class UpdateActivity extends Activity {
-    private static final String META =
+    // Prefer GitHub's Contents API: unlike the raw CDN, the API resolves the
+    // current branch head and does not depend on an edge's cached JSON.
+    private static final String META_API =
+            "https://api.github.com/repos/StrokeDot/ExtraDimNative/contents/latest.json?ref=updates";
+    private static final String META_RAW =
             "https://raw.githubusercontent.com/StrokeDot/ExtraDimNative/updates/latest.json";
+    private static final String META_CDN =
+            "https://cdn.jsdelivr.net/gh/StrokeDot/ExtraDimNative@updates/latest.json";
+    private static final String DOWNLOADS =
+            "https://github.com/StrokeDot/ExtraDimNative/tree/updates/apks";
     private static final String APK_PREFIX =
             "https://raw.githubusercontent.com/StrokeDot/ExtraDimNative/updates/apks/";
     private static final String BUILDS =
@@ -107,6 +117,14 @@ public final class UpdateActivity extends Activity {
         sp.topMargin=dp(20);panel.addView(status,sp);
         checkButton=button("Check again",panel);
         checkButton.setOnClickListener(v->check());
+        TextView manual=button("Open signed APK downloads (if check fails)",panel);
+        manual.setOnClickListener(v->{
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(DOWNLOADS)));
+            } catch (RuntimeException e) {
+                report("Unable to open browser. Visit " + DOWNLOADS);
+            }
+        });
         downloadButton=button("Download and install update",panel);
         downloadButton.setVisibility(View.GONE);
         downloadButton.setOnClickListener(v->download());
@@ -144,8 +162,11 @@ public final class UpdateActivity extends Activity {
         HttpURLConnection conn=(HttpURLConnection)new URL(url).openConnection();
         conn.setConnectTimeout(10000);conn.setReadTimeout(10000);
         conn.setUseCaches(false);
-        conn.setRequestProperty("Cache-Control","no-cache");
-        conn.setRequestProperty("User-Agent","LumaShade/OTA");
+        conn.setRequestProperty("Cache-Control","no-cache, no-store, max-age=0");
+        conn.setRequestProperty("Pragma","no-cache");
+        conn.setRequestProperty("Accept","application/vnd.github+json, application/json, */*");
+        conn.setRequestProperty("User-Agent","LumaShade-OTA/1.1");
+        conn.setInstanceFollowRedirects(true);
         try{
             int code=conn.getResponseCode();
             if(code==404)throw new java.io.FileNotFoundException("No signed APK published yet");
@@ -160,8 +181,15 @@ public final class UpdateActivity extends Activity {
             }
         }finally{conn.disconnect();}
     }
-    private static JSONObject metadata() throws Exception {
-        JSONObject info=new JSONObject(readUrl(META+"?t="+System.currentTimeMillis()));
+    private static JSONObject parseMetadata(String body) throws Exception {
+        JSONObject info=new JSONObject(body);
+        // GitHub's Contents API normally returns a JSON envelope whose
+        // "content" is Base64. The raw and CDN endpoints return plain JSON.
+        if("base64".equalsIgnoreCase(info.optString("encoding")) && info.has("content")) {
+            byte[] data=Base64.decode(info.getString("content"),Base64.DEFAULT);
+            if(data.length>100000)throw new java.io.IOException("Update metadata too large");
+            info=new JSONObject(new String(data,StandardCharsets.UTF_8));
+        }
         String version=info.getString("versionName");
         int code=info.getInt("versionCode");
         String apk=info.getString("apkUrl");
@@ -172,6 +200,28 @@ public final class UpdateActivity extends Activity {
             throw new SecurityException("Unrecognized update metadata");
         }
         return info;
+    }
+    private static JSONObject metadata() throws Exception {
+        // Independent hosts help when an ISP blocks githubusercontent.com.
+        String[] urls={
+            META_API+"&nocache="+System.currentTimeMillis(),
+            META_RAW+"?nocache="+System.currentTimeMillis(),
+            META_CDN+"?nocache="+System.currentTimeMillis()
+        };
+        String[] names={"GitHub API","GitHub raw","CDN mirror"};
+        StringBuilder failures=new StringBuilder();
+        for(int i=0;i<urls.length;i++) {
+            try {
+                JSONObject info=parseMetadata(readUrl(urls[i]));
+                info.put("_source",names[i]); // local diagnostic only
+                return info;
+            } catch (Exception e) {
+                if(failures.length()>0)failures.append("; ");
+                String message=e.getMessage()==null?e.getClass().getSimpleName():e.getMessage();
+                failures.append(names[i]).append(": ").append(message);
+            }
+        }
+        throw new java.io.IOException("All update sources failed. "+failures);
     }
     private void check(){
         report("Checking the latest automatically published APK…");
@@ -188,15 +238,17 @@ public final class UpdateActivity extends Activity {
                     if(!active)return;
                     checkButton.setEnabled(true);
                     if(code<=BuildConfig.VERSION_CODE) {
-                        report("LumaShade v"+BuildConfig.VERSION_NAME+
-                                " is up to date. Latest published: v"+version+".");
+                        report("LumaShade v"+BuildConfig.VERSION_NAME+" (code "+BuildConfig.VERSION_CODE+
+                                ") is up to date. Latest published: v"+version+" (code "+code+
+                                ") via "+data.optString("_source")+".");
                     }else{
                         latestName=version;
                         latestCode=code;
                         assetUrl=url;
                         fileName="LumaShade-v"+version+".apk";
                         expectedSha=hash;
-                        report("Update available: LumaShade v"+version+
+                        report("Update available: LumaShade v"+version+" (code "+code+
+                                "), found via "+data.optString("_source")+
                                 ". Tap Download and install.");
                         downloadButton.setVisibility(View.VISIBLE);
                         downloadButton.setText("Download and install v"+version);
@@ -209,7 +261,8 @@ public final class UpdateActivity extends Activity {
                     report(e instanceof java.io.FileNotFoundException
                             ?"No installable update has been published yet. "
                                 +"The signing setup must be completed once in GitHub."
-                            :"Unable to check updates: "+e.getMessage());
+                            :"Unable to check updates: "+e.getMessage()+
+                                 ". Tap Open signed APK downloads for manual installation.");
                 });
             }
         },"LumaShade-CheckUpdates").start();
