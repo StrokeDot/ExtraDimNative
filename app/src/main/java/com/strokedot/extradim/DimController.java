@@ -16,8 +16,8 @@ public final class DimController {
     static final String LEVEL = "reduce_bright_colors_level";
     static final String PERSIST = "reduce_bright_colors_persist_across_reboots";
     static final int MIN = 25;
-    // Android's native reduce-bright-colors level supports values through 100.
-    static final int MAX = 100;
+    // The device supports 100, but cap LumaShade at 95 for usable visibility.
+    static final int MAX = 95;
 
     static boolean hasPermission(Context c) {
         return c.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
@@ -61,6 +61,14 @@ public final class DimController {
     static boolean active(Context c) { return read(c, ACTIVE, 0) == 1; }
     static boolean persistent(Context c) { return read(c, PERSIST, 0) == 1; }
     static int level(Context c) { return Math.max(MIN, Math.min(MAX, read(c, LEVEL, 50))); }
+    // When upgrading from v0.15.3 the system may still have level 100.
+    // Migrate it once to the new maximum so the display actually brightens;
+    // merely clamping the slider position would leave the hardware at 100.
+    static void enforceMaxLevel(Context c) {
+        if (!hasPermission(c)) return;
+        int raw = read(c, LEVEL, 50);
+        if (raw > MAX) write(c, LEVEL, MAX);
+    }
     // A successful SettingsProvider write can be observed asynchronously.
     // Never call it a failure solely because an immediate read returns the old value.
     private static volatile String lastWriteIssue = "";

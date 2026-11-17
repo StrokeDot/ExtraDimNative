@@ -8,8 +8,8 @@ android {
         applicationId 'com.strokedot.extradim'
         minSdk 31
         targetSdk 35
-        versionCode 18
-        versionName '0.15.3'
+        versionCode 19
+        versionName '0.15.4'
     }
     // Long-lived private key provided ONLY through GitHub Actions secrets.
     signingConfigs {

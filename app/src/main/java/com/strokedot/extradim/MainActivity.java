@@ -80,6 +80,7 @@ public final class MainActivity extends Activity {
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.PERSIST), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.ACTIVE), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.KELVIN), false, observer);
+        DimController.enforceMaxLevel(this);
         sync();
         NotificationController.refresh(this);
         UpdateActivity.checkOnAppOpen(this);
@@ -194,14 +195,14 @@ public final class MainActivity extends Activity {
         addWithMargins(body,options,0,12);
 
         LinearLayout settingsCard = panel();
-        settingsCard.addView(text("Extra Dim intensity (up to 100)",16,WHITE,false),lp(-1,35));
+        settingsCard.addView(text("Extra Dim intensity (up to 95)",16,WHITE,false),lp(-1,35));
         addGap(settingsCard,8);
         intensity = new SeekBar(this);
         intensity.setMax(DimController.MAX-DimController.MIN);
         intensity.setProgress(DimController.MAX-50);
         settingsCard.addView(intensity,lp(-1,50));
         LinearLayout hints = new LinearLayout(this);
-        TextView dimmer = text("Dimmer • 100",13,GREY,false);
+        TextView dimmer = text("Dimmer • 95",13,GREY,false);
         TextView brighter = text("Brighter • 25",13,GREY,false);
         brighter.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         hints.addView(dimmer,new LinearLayout.LayoutParams(0,d(25),1));
@@ -212,14 +213,14 @@ public final class MainActivity extends Activity {
         settingsCard.addView(labelSwitch("Keep on after device restarts",persist),lp(-1,-2));
         addGap(settingsCard,20);
 
-        TextView systemShortcut=text("Android Extra Dim shortcut (optional)",15,WHITE,true);
-        systemShortcut.setPadding(d(8),d(8),d(8),d(6));
-        systemShortcut.setOnClickListener(v ->
-                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)));
-        settingsCard.addView(systemShortcut,lp(-1,-2));
+        TextView shortcutTitle=text("Quick Settings shortcut",15,WHITE,true);
+        shortcutTitle.setPadding(d(8),d(8),d(8),d(6));
+        settingsCard.addView(shortcutTitle,lp(-1,-2));
         TextView shortcutHint=text(
-            "Opens Android's accessibility settings for the built-in Extra Dim "
-            +"shortcut, if available. LumaShade itself does not use Accessibility.",
+            "LumaShade does not appear in the Accessibility services list. "
+            +"To add its shortcut, swipe down twice, tap Edit in Quick Settings, "
+            +"and look for the 'LumaShade Dim' tile. "
+            +"You can also toggle Dim from the LumaShade notification.",
             12,GREY,false);
         addWithMargins(settingsCard,shortcutHint,0,8);
         addWithMargins(body,settingsCard,0,18);
