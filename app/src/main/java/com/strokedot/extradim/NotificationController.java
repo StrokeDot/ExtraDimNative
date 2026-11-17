@@ -17,7 +17,9 @@ public final class NotificationController {
     private static final String PREFS="notification_controls";
     private static final String ENABLED="enabled";
     private static final String PINNED="pinned";
-    private static final String CHANNEL="lumashade_controls_v4";
+    // A new channel is necessary: Android does not allow changing the importance
+    // of an already created channel. Default importance remains non-intrusive.
+    private static final String CHANNEL="lumashade_controls_v5";
     private static final int ID=31;
     private static boolean posting=false;
     static boolean enabled(Context c) {
@@ -70,11 +72,14 @@ public final class NotificationController {
             if(nm==null)return;
             if(!enabled(c)||!canPost(c)){nm.cancel(ID);return;}
             NotificationChannel ch=new NotificationChannel(CHANNEL,"LumaShade controls",
-                    NotificationManager.IMPORTANCE_LOW);
+                    NotificationManager.IMPORTANCE_DEFAULT);
             ch.setSound(null,null);
             ch.enableVibration(false);
-            ch.setDescription("Dim, blue light filter and settings");
+            ch.setDescription("Pinned one-tap dim and filter controls");
+            ch.setShowBadge(false);
             nm.createNotificationChannel(ch);
+            // Retire the previous low-importance channel after migration.
+            nm.deleteNotificationChannel("lumashade_controls_v4");
             boolean dim=DimController.active(c);
             boolean warm=BlueLightController.active(c);
             PendingIntent open=PendingIntent.getActivity(c,41,
@@ -89,6 +94,7 @@ public final class NotificationController {
                     .setStyle(new Notification.DecoratedCustomViewStyle())
                     .setCustomContentView(ui(c,dim,warm,open))
                     .setCustomBigContentView(ui(c,dim,warm,open))
+                    .setPriority(Notification.PRIORITY_HIGH)
                     .setOnlyAlertOnce(true)
                     .setShowWhen(false)
                     .setOngoing(pinned(c))

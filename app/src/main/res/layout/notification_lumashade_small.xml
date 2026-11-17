@@ -10,39 +10,39 @@
     android:paddingRight="4dp">
     <LinearLayout android:id="@+id/n_small_dim"
         android:layout_width="0dp" android:layout_weight="1"
-        android:layout_height="60dp" android:gravity="center"
-        android:orientation="vertical" android:contentDescription="Toggle Extra Dim">
+        android:layout_height="60dp" android:gravity="top|center_horizontal"
+        android:orientation="vertical" android:paddingTop="5dp" android:contentDescription="Toggle Extra Dim">
         <ImageView android:id="@+id/n_dim_icon"
             android:layout_width="24dp" android:layout_height="24dp"
             android:src="@drawable/ic_dim_off"/>
         <TextView android:id="@+id/n_dim_caption"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:gravity="center" android:text="Dim"
+            android:layout_width="match_parent" android:layout_height="29dp"
+            android:gravity="top|center_horizontal" android:includeFontPadding="false" android:text="Dim"
             android:textColor="#8F97A6" android:textSize="11sp"
-            android:layout_marginTop="3dp" android:maxLines="2"/>
+            android:layout_marginTop="4dp" android:maxLines="2"/>
     </LinearLayout>
     <LinearLayout android:id="@+id/n_small_warm"
         android:layout_width="0dp" android:layout_weight="1"
-        android:layout_height="60dp" android:gravity="center"
-        android:orientation="vertical" android:contentDescription="Toggle blue light filter">
+        android:layout_height="60dp" android:gravity="top|center_horizontal"
+        android:orientation="vertical" android:paddingTop="5dp" android:contentDescription="Toggle blue light filter">
         <ImageView android:id="@+id/n_warm_icon"
             android:layout_width="24dp" android:layout_height="24dp"
             android:src="@drawable/ic_warm_filter_off"/>
         <TextView android:id="@+id/n_warm_caption"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:gravity="center" android:text="Blue light&#10;filter"
+            android:layout_width="match_parent" android:layout_height="29dp"
+            android:gravity="top|center_horizontal" android:includeFontPadding="false" android:text="Blue light&#10;filter"
             android:textColor="#8F97A6" android:textSize="11sp"
-            android:layout_marginTop="3dp" android:maxLines="2"/>
+            android:layout_marginTop="4dp" android:maxLines="2"/>
     </LinearLayout>
     <LinearLayout android:id="@+id/n_small_settings"
         android:layout_width="0dp" android:layout_weight="1"
-        android:layout_height="60dp" android:gravity="center"
-        android:orientation="vertical" android:contentDescription="Open LumaShade settings">
+        android:layout_height="60dp" android:gravity="top|center_horizontal"
+        android:orientation="vertical" android:paddingTop="5dp" android:contentDescription="Open LumaShade settings">
         <ImageView android:layout_width="24dp" android:layout_height="24dp"
             android:src="@drawable/ic_settings"/>
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:gravity="center" android:text="Settings"
+        <TextView android:layout_width="match_parent" android:layout_height="29dp"
+            android:gravity="top|center_horizontal" android:includeFontPadding="false" android:text="Settings"
             android:textColor="#B4BCCD" android:textSize="11sp"
-            android:layout_marginTop="3dp" android:maxLines="2"/>
+            android:layout_marginTop="4dp" android:maxLines="2"/>
     </LinearLayout>
 </LinearLayout>

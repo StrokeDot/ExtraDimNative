@@ -38,7 +38,7 @@ public final class MainActivity extends Activity {
     private Switch enabled, persist, notificationControls, pinnedNotification, blueLight;
     private SeekBar intensity;
     private PhoneIllustrationView illustration;
-    private TextView permissionBanner, currentStatus, actionStatus;
+    private TextView permissionBanner, actionStatus;
     private boolean syncing;
     private boolean draggingIntensity;
     private final HashMap<String,Integer> pending = new HashMap<>();
@@ -128,6 +128,19 @@ public final class MainActivity extends Activity {
         l.bottomMargin=d(bottom);
         parent.addView(view,l);
     }
+    private TextView actionButton(String label, int color, int background) {
+        TextView button=text(label,15,color,true);
+        button.setGravity(Gravity.CENTER);
+        button.setMinHeight(d(48));
+        button.setPadding(d(14),d(12),d(14),d(12));
+        button.setBackground(rounded(background,14));
+        return button;
+    }
+    private void feedback(String message) {
+        if (actionStatus==null) return;
+        actionStatus.setText(message);
+        actionStatus.setVisibility(View.VISIBLE);
+    }
     private Switch sw() {
         Switch s = new Switch(this);
         s.setShowText(false);
@@ -187,15 +200,11 @@ public final class MainActivity extends Activity {
 
         LinearLayout masterCard = panel();
         enabled = sw();
-        masterCard.addView(labelSwitch("Make screen extra dim",enabled),lp(-1,-2));
-        addWithMargins(body,masterCard,14,25);
-
-        TextView options = text("Options",16,GREY,true);
-        options.setPadding(d(16),0,0,0);
-        addWithMargins(body,options,0,12);
+        masterCard.addView(labelSwitch("Extra Dim",enabled),lp(-1,-2));
+        addWithMargins(body,masterCard,14,14);
 
         LinearLayout settingsCard = panel();
-        settingsCard.addView(text("Extra Dim intensity (up to 95)",16,WHITE,false),lp(-1,35));
+        settingsCard.addView(text("Intensity",16,WHITE,true),lp(-1,35));
         addGap(settingsCard,8);
         intensity = new SeekBar(this);
         intensity.setMax(DimController.MAX-DimController.MIN);
@@ -210,85 +219,26 @@ public final class MainActivity extends Activity {
         settingsCard.addView(hints,lp(-1,-2));
         addGap(settingsCard,16);
         persist=sw();
-        settingsCard.addView(labelSwitch("Keep on after device restarts",persist),lp(-1,-2));
-        addGap(settingsCard,20);
+        settingsCard.addView(labelSwitch("Keep enabled after restart",persist),lp(-1,-2));
 
-        TextView shortcutTitle=text("Quick Settings shortcut",15,WHITE,true);
-        shortcutTitle.setPadding(d(8),d(8),d(8),d(6));
-        settingsCard.addView(shortcutTitle,lp(-1,-2));
-        TextView shortcutHint=text(
-            "LumaShade does not appear in the Accessibility services list. "
-            +"To add its shortcut, swipe down twice, tap Edit in Quick Settings, "
-            +"and look for the 'LumaShade Dim' tile. "
-            +"You can also toggle Dim from the LumaShade notification.",
-            12,GREY,false);
-        addWithMargins(settingsCard,shortcutHint,0,8);
         addWithMargins(body,settingsCard,0,18);
 
         LinearLayout blueCard = panel();
         blueLight = sw();
         blueCard.addView(labelSwitch("Blue light filter",blueLight),lp(-1,-2));
-        TextView blueNote = text("Native Night Light • separate from Extra Dim",13,GREY,false);
-        addWithMargins(blueCard,blueNote,0,6);
-        // HyperOS does not visibly apply the AOSP temperature slider on this
-        // Xiaomi. Keep the working on/off toggle; use native Reading mode
-        // settings for actual warmth selection.
-        TextView blueSupport = text(
-            BlueLightController.featureReportedAvailable(this)
-              ? "Blue light filter: on/off only. The earlier warmth slider did not change screen colors on HyperOS; use Xiaomi Reading mode below to control warmth."
-              : "Android Night Light is not reported available on this device. Use Xiaomi Reading mode below for native color and warmth options.",
-            12,GREY,false);
-        addWithMargins(blueCard,blueSupport,6,4);
-        // HyperOS has its own Reading mode display service. Its intensity
-        // cannot be assumed to apply when a third-party app writes a setting.
-        // Provide the official device controls instead of forcing access to
-        // WRITE_SETTINGS or claiming a successful pixel color change.
-        TextView readingSettings = text("Open Xiaomi Reading mode settings",14,0xFFBBD7FF,true);
-        readingSettings.setGravity(Gravity.CENTER);
-        readingSettings.setPadding(d(12),d(12),d(12),d(12));
-        readingSettings.setBackground(rounded(0xFF2D3446,12));
-        readingSettings.setOnClickListener(v -> {
-            try {
-                startActivity(new Intent(Settings.ACTION_DISPLAY_SETTINGS));
-                Toast.makeText(this,
-                    "In Display & brightness, open Reading mode and choose Classic to adjust warmth.",
-                    Toast.LENGTH_LONG).show();
-            } catch (RuntimeException e) {
-                actionStatus.setText("Open phone Settings → Display & brightness → Reading mode.");
-            }
-        });
-        if (Build.MANUFACTURER != null &&
-            (Build.MANUFACTURER.toLowerCase(java.util.Locale.ROOT).contains("xiaomi")
-             || Build.MANUFACTURER.toLowerCase(java.util.Locale.ROOT).contains("redmi")
-             || Build.MANUFACTURER.toLowerCase(java.util.Locale.ROOT).contains("poco"))) {
-            addWithMargins(blueCard,readingSettings,8,4);
-        }
         addWithMargins(body,blueCard,0,15);
 
         LinearLayout notificationCard = panel();
         notificationControls = sw();
-        notificationCard.addView(labelSwitch("Notification bar controls", notificationControls),lp(-1,-2));
-        TextView notificationHint = text(
-                "Tap Dim or Blue light filter to toggle them; open Settings to adjust Extra Dim intensity.",
-                13,GREY,false);
-        addWithMargins(notificationCard, notificationHint,0,2);
-        addGap(notificationCard,8);
+        notificationCard.addView(labelSwitch("Notification bar", notificationControls),lp(-1,-2));
         pinnedNotification = sw();
         notificationCard.addView(labelSwitch("Keep notification pinned", pinnedNotification), lp(-1,-2));
-        TextView pinnedHint = text(
-                "On by default. Helps prevent clearing the controls; Android may still allow a swipe to dismiss. Turn it off to allow normal dismissal.",
-                12,GREY,false);
-        addWithMargins(notificationCard,pinnedHint,0,7);
         addWithMargins(body,notificationCard,0,14);
         LinearLayout updateCard = panel();
         TextView updateTitle=text("Updates",16,WHITE,true);
         updateCard.addView(updateTitle,lp(-1,-2));
-        TextView updateSub=text("Check for app updates and install signed APKs directly from LumaShade.",13,GREY,false);
-        addWithMargins(updateCard,updateSub,4,8);
-        TextView updateButton=text("Check for updates",15,0xFFBBD7FF,true);
-        updateButton.setGravity(Gravity.CENTER);
-        updateButton.setPadding(d(12),d(12),d(12),d(12));
-        updateButton.setBackground(rounded(0xFF2D3446,12));
+        addGap(updateCard,10);
+        TextView updateButton=actionButton("Check for updates",0xFFBBD7FF,0xFF2D3446);
         updateButton.setOnClickListener(v -> startActivity(new Intent(this,UpdateActivity.class)));
         updateCard.addView(updateButton,lp(-1,-2));
         addWithMargins(body,updateCard,0,14);
@@ -303,31 +253,20 @@ public final class MainActivity extends Activity {
         });
         addWithMargins(body,permissionBanner,0,14);
 
-        TextView help=text("Extra dim can be helpful when:\n• Your phone’s default minimum brightness is still too bright\n• You’re using your phone in a dark environment before bed",13,GREY,false);
-        help.setPadding(d(16),d(2),d(12),d(5));
-        body.addView(help,lp(-1,-2));
-
-        TextView reset=text("Restore normal brightness",14,WHITE,true);
-        reset.setGravity(Gravity.CENTER);
-        reset.setPadding(d(12),d(12),d(12),d(12));
+        TextView reset=actionButton("Restore normal brightness",0xFFFFD1DB,0xFF38272F);
         reset.setOnClickListener(v -> {
             if (!DimController.write(this,DimController.ACTIVE,0)) failed();
             sync();
         });
-        addWithMargins(body,reset,15,0);
+        addWithMargins(body,reset,8,0);
 
-        actionStatus = text("Ready for a native dimming test. Changes are checked after a short delay.",13,0xFFBBD7FF,false);
+        actionStatus = text("",13,0xFFBBD7FF,false);
+        actionStatus.setVisibility(View.GONE);
         actionStatus.setGravity(Gravity.CENTER);
         actionStatus.setPadding(d(12),d(7),d(12),d(7));
         addWithMargins(body,actionStatus,4,2);
 
-        currentStatus = text("",12,GREY,false);
-        currentStatus.setGravity(Gravity.CENTER);
-        addWithMargins(body,currentStatus,4,4);
-        TextView diagnostic = text("Copy Extra Dim diagnostics",14,0xFFBBD7FF,true);
-        diagnostic.setGravity(Gravity.CENTER);
-        diagnostic.setPadding(d(14),d(12),d(14),d(12));
-        diagnostic.setBackground(rounded(0xFF252B35,14));
+        TextView diagnostic=actionButton("Copy LumaShade diagnostics",0xFFBBD7FF,0xFF2D3446);
         diagnostic.setOnClickListener(v -> {
             String report = "LumaShade " + BuildConfig.VERSION_NAME
                 + "\nDevice: " + Build.MANUFACTURER + " " + Build.MODEL
@@ -336,14 +275,10 @@ public final class MainActivity extends Activity {
                 + "\nCurrent: " + snapshot()
                 + "\nRead issue: " + DimController.lastReadIssue() + "\n" + history;
             ClipboardManager cb = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
-            cb.setPrimaryClip(ClipData.newPlainText("Extra Dim diagnostics",report));
+            cb.setPrimaryClip(ClipData.newPlainText("LumaShade diagnostics",report));
             Toast.makeText(this,"Diagnostics copied",Toast.LENGTH_SHORT).show();
         });
-        addWithMargins(body,diagnostic,6,9);
-        TextView safety = text("Keep normal brightness above minimum while testing. If the display becomes unreadable, use the restore control or the ADB recovery command.",12,GREY,false);
-        safety.setGravity(Gravity.CENTER);
-        safety.setPadding(d(16),d(6),d(16),0);
-        addWithMargins(body,safety,0,4);
+        addWithMargins(body,diagnostic,8,8);
 
         enabled.setOnCheckedChangeListener((b,isChecked) -> {
             if (syncing) return;
@@ -351,11 +286,7 @@ public final class MainActivity extends Activity {
         });
         intensity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar bar,int progress,boolean fromUser) {
-                // Do not flood HyperOS with writes on every slider movement.
-                if (fromUser && draggingIntensity) {
-                    actionStatus.setText("Selected intensity: " + (DimController.MAX - progress)
-                            + ". Release the slider to apply.");
-                }
+                // Apply once on release, not on every touch event.
             }
             @Override public void onStartTrackingTouch(SeekBar bar) { draggingIntensity=true; }
             @Override public void onStopTrackingTouch(SeekBar bar) {
@@ -375,9 +306,7 @@ public final class MainActivity extends Activity {
         pinnedNotification.setOnCheckedChangeListener((button, checked) -> {
             if (syncing) return;
             NotificationController.setPinned(this, checked);
-            if (checked) Toast.makeText(this,
-                    "Pinned mode enabled (Android can still permit manual dismissal).",
-                    Toast.LENGTH_LONG).show();
+
         });
         notificationControls.setOnCheckedChangeListener((button, checked) -> {
             if (syncing) return;
@@ -391,9 +320,7 @@ public final class MainActivity extends Activity {
                 return;
             }
             NotificationController.setEnabled(this, checked);
-            if (checked) Toast.makeText(this,
-                    "Swipe down to toggle Extra Dim and blue light, or open Settings.",
-                    Toast.LENGTH_LONG).show();
+
             sync();
         });
     }
@@ -416,7 +343,7 @@ public final class MainActivity extends Activity {
         String issue = DimController.lastWriteIssue();
         String message = "Android rejected the change"
                 + (issue.isEmpty() ? "." : ": " + issue);
-        if (actionStatus != null) actionStatus.setText(message);
+        feedback(message);
         Toast.makeText(this,message,Toast.LENGTH_LONG).show();
     }
     private String snapshot() {
@@ -444,7 +371,7 @@ public final class MainActivity extends Activity {
             sync();
             return;
         }
-        actionStatus.setText(label + " requested; verifying the system...");
+        feedback(label + " — checking…");
         main.postDelayed(() -> verify(label,key,requested,generation,false),300);
         main.postDelayed(() -> verify(label,key,requested,generation,true),1600);
     }
@@ -454,13 +381,9 @@ public final class MainActivity extends Activity {
         trace((finalCheck ? "final " : "early ") + key + " wanted=" + wanted + " actual=" + observed);
         if (!finalCheck) return;
         pending.remove(key);
-        actionStatus.setText(observed == wanted
-                ? (DimController.isShadowState()
-                    ? label + " applied. Remembered " + wanted
-                        + " locally (Android hides the setting from regular apps)."
-                    : label + " saved as " + wanted + ". Check whether the display changed.")
-                : label + " reverted (requested " + wanted + ", Android reports " + observed
-                    + "). Tap Copy Extra Dim diagnostics.");
+        feedback(observed == wanted
+                ? label + " saved."
+                : label + " could not be confirmed. Copy LumaShade diagnostics.");
         sync();
     }
     private void sync() {
@@ -479,16 +402,6 @@ public final class MainActivity extends Activity {
         if (illustration != null) illustration.setWarmthEnabled(BlueLightController.active(this));
         notificationControls.setChecked(NotificationController.enabled(this));
         pinnedNotification.setChecked(NotificationController.pinned(this));
-        boolean available = DimController.featureReportedAvailable(this);
-        currentStatus.setText("Native dimming " + (DimController.active(this) ? "ON" : "OFF")
-                + "  ·  saved level " + DimController.level(this)
-                + "  ·  " + (DimController.hasPermission(this) ? "ADB grant ready" : "ADB grant needed")
-                + (available ? "" : "\nNative feature not reported as available on this device; verify visually."));
-        String readIssue = DimController.lastReadIssue();
-        if (readIssue != null && !readIssue.isEmpty()) {
-            currentStatus.setText("System blocked reading native Extra Dim state. "
-                    + "Tap Copy Extra Dim diagnostics for the exact error.");
-        }
         boolean permitted=DimController.hasPermission(this);
         enabled.setEnabled(permitted);
         // Native Extra Dim strength is adjustable only while it is on.
@@ -501,7 +414,7 @@ public final class MainActivity extends Activity {
         pinnedNotification.setEnabled(NotificationController.enabled(this));
         permissionBanner.setVisibility(permitted?View.GONE:View.VISIBLE);
         if (!permitted) {
-            permissionBanner.setText("One-time ADB setup required. Tap to copy the permission command, run it from PowerShell, then return to this screen.");
+            permissionBanner.setText("Permission required. Tap to copy the ADB setup command.");
         }
         syncing=false;
     }
