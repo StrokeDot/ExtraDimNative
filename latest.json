@@ -1,7 +1,7 @@
 {
-  "versionName": "0.15.1",
-  "versionCode": 16,
-  "apkUrl": "https://raw.githubusercontent.com/StrokeDot/ExtraDimNative/updates/apks/LumaShade-v0.15.1.apk",
-  "sha256": "7bb504bfc7c435015721c47c008c1a8603c8c7d98c2af099c04e4e6ebb919e61",
-  "publishedAt": "2026-11-17T08:56:26.126849+00:00"
+  "versionName": "0.15.2",
+  "versionCode": 17,
+  "apkUrl": "https://raw.githubusercontent.com/StrokeDot/ExtraDimNative/updates/apks/LumaShade-v0.15.2.apk",
+  "sha256": "1322d85f061025ebf314c2e7d2a7d7ec7e60dc43ca7edfa997c57f89b01eadc4",
+  "publishedAt": "2026-11-17T09:02:42.812600+00:00"
 }
