@@ -16,7 +16,8 @@ public final class DimController {
     static final String LEVEL = "reduce_bright_colors_level";
     static final String PERSIST = "reduce_bright_colors_persist_across_reboots";
     static final int MIN = 25;
-    static final int MAX = 90;
+    // Android's native reduce-bright-colors level supports values through 100.
+    static final int MAX = 100;
 
     static boolean hasPermission(Context c) {
         return c.checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS)

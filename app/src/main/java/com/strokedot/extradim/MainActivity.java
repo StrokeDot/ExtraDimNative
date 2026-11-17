@@ -36,10 +36,8 @@ public final class MainActivity extends Activity {
     private static final String GRANT =
         "adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS";
     private Switch enabled, persist, notificationControls, pinnedNotification, blueLight;
-    private SeekBar intensity, warmth;
-    private TextView warmthLabel;
+    private SeekBar intensity;
     private PhoneIllustrationView illustration;
-    private boolean draggingWarmth;
     private TextView permissionBanner, currentStatus, actionStatus;
     private boolean syncing;
     private boolean draggingIntensity;
@@ -196,15 +194,15 @@ public final class MainActivity extends Activity {
         addWithMargins(body,options,0,12);
 
         LinearLayout settingsCard = panel();
-        settingsCard.addView(text("Intensity",16,WHITE,false),lp(-1,35));
+        settingsCard.addView(text("Extra Dim intensity (up to 100)",16,WHITE,false),lp(-1,35));
         addGap(settingsCard,8);
         intensity = new SeekBar(this);
         intensity.setMax(DimController.MAX-DimController.MIN);
         intensity.setProgress(DimController.MAX-50);
         settingsCard.addView(intensity,lp(-1,50));
         LinearLayout hints = new LinearLayout(this);
-        TextView dimmer = text("Dimmer",13,GREY,false);
-        TextView brighter = text("Brighter",13,GREY,false);
+        TextView dimmer = text("Dimmer • 100",13,GREY,false);
+        TextView brighter = text("Brighter • 25",13,GREY,false);
         brighter.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
         hints.addView(dimmer,new LinearLayout.LayoutParams(0,d(25),1));
         hints.addView(brighter,new LinearLayout.LayoutParams(0,d(25),1));
@@ -231,23 +229,13 @@ public final class MainActivity extends Activity {
         blueCard.addView(labelSwitch("Blue light filter",blueLight),lp(-1,-2));
         TextView blueNote = text("Native Night Light • separate from Extra Dim",13,GREY,false);
         addWithMargins(blueCard,blueNote,0,6);
-        warmthLabel = text("Warmth 50%",15,WHITE,false);
-        addWithMargins(blueCard,warmthLabel,6,4);
-        warmth = new SeekBar(this);
-        warmth.setMax(100);
-        warmth.setProgress(BlueLightController.strength(this));
-        blueCard.addView(warmth,lp(-1,48));
-        LinearLayout warmHints = new LinearLayout(this);
-        TextView cooler = text("Cooler",12,GREY,false);
-        TextView warmer = text("Warmer",12,GREY,false);
-        warmer.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        warmHints.addView(cooler,new LinearLayout.LayoutParams(0,d(20),1));
-        warmHints.addView(warmer,new LinearLayout.LayoutParams(0,d(20),1));
-        blueCard.addView(warmHints,lp(-1,-2));
+        // HyperOS does not visibly apply the AOSP temperature slider on this
+        // Xiaomi. Keep the working on/off toggle; use native Reading mode
+        // settings for actual warmth selection.
         TextView blueSupport = text(
             BlueLightController.featureReportedAvailable(this)
-              ? "Uses Android Night Light. If the display color does not change, Xiaomi Reading mode may use different controls."
-              : "Android Night Light is not reported available by this ROM. Xiaomi Reading mode may use different vendor controls.",
+              ? "Blue light filter: on/off only. The earlier warmth slider did not change screen colors on HyperOS; use Xiaomi Reading mode below to control warmth."
+              : "Android Night Light is not reported available on this device. Use Xiaomi Reading mode below for native color and warmth options.",
             12,GREY,false);
         addWithMargins(blueCard,blueSupport,6,4);
         // HyperOS has its own Reading mode display service. Its intensity
@@ -280,7 +268,7 @@ public final class MainActivity extends Activity {
         notificationControls = sw();
         notificationCard.addView(labelSwitch("Notification bar controls", notificationControls),lp(-1,-2));
         TextView notificationHint = text(
-                "Tap the moon to toggle Extra Dim, the sun to toggle blue light, or Settings to adjust intensity.",
+                "Tap Dim or Blue light filter to toggle them; open Settings to adjust Extra Dim intensity.",
                 13,GREY,false);
         addWithMargins(notificationCard, notificationHint,0,2);
         addGap(notificationCard,8);
@@ -382,28 +370,6 @@ public final class MainActivity extends Activity {
         blueLight.setOnCheckedChangeListener((view,checked) -> {
             if (syncing) return;
             applySetting("Blue light filter",BlueLightController.ACTIVE,checked ? 1 : 0);
-        });
-        warmth.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onStartTrackingTouch(SeekBar bar) { draggingWarmth=true; }
-            @Override public void onProgressChanged(SeekBar bar,int progress,boolean fromUser) {
-                if (fromUser) warmthLabel.setText("Warmth " + progress + "%");
-            }
-            @Override public void onStopTrackingTouch(SeekBar bar) {
-                draggingWarmth=false;
-                int chosen=bar.getProgress();
-                trace("Blue warmth selected " + chosen);
-                if (BlueLightController.setStrength(MainActivity.this,chosen)) {
-                    int actualKelvin = DimController.read(MainActivity.this,
-                            BlueLightController.KELVIN,-1);
-                    actionStatus.setText("Night Light " + chosen + "% ("
-                            + actualKelvin + " K saved). If the color stays unchanged, "
-                            + "the Xiaomi display pipeline may ignore this setting.");
-                } else {
-                    actionStatus.setText("Android rejected the color-temperature change. "
-                            + DimController.lastWriteIssue());
-                }
-                sync();
-            }
         });
         pinnedNotification.setOnCheckedChangeListener((button, checked) -> {
             if (syncing) return;
@@ -509,8 +475,6 @@ public final class MainActivity extends Activity {
                 DimController.read(this,DimController.PERSIST,0))==1);
         blueLight.setChecked(visible(BlueLightController.ACTIVE,
                 DimController.read(this,BlueLightController.ACTIVE,0)) == 1);
-        if (!draggingWarmth) warmth.setProgress(BlueLightController.strength(this));
-        warmthLabel.setText("Warmth " + BlueLightController.strength(this) + "%");
         if (illustration != null) illustration.setWarmthEnabled(BlueLightController.active(this));
         notificationControls.setChecked(NotificationController.enabled(this));
         pinnedNotification.setChecked(NotificationController.pinned(this));
@@ -526,15 +490,11 @@ public final class MainActivity extends Activity {
         }
         boolean permitted=DimController.hasPermission(this);
         enabled.setEnabled(permitted);
-        // Only the strength sliders depend on their respective active toggles.
+        // Native Extra Dim strength is adjustable only while it is on.
         boolean dimOn = visible(DimController.ACTIVE,
                 DimController.read(this,DimController.ACTIVE,0)) == 1;
-        boolean warmOn = visible(BlueLightController.ACTIVE,
-                DimController.read(this,BlueLightController.ACTIVE,0)) == 1;
         intensity.setEnabled(permitted && dimOn);
         blueLight.setEnabled(permitted);
-        warmth.setEnabled(permitted && warmOn);
-        warmthLabel.setTextColor(permitted && warmOn ? WHITE : GREY);
         persist.setEnabled(permitted);
         notificationControls.setEnabled(permitted);
         pinnedNotification.setEnabled(NotificationController.enabled(this));
