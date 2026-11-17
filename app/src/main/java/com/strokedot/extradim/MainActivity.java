@@ -37,7 +37,7 @@ public final class MainActivity extends Activity {
         "adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS";
     private Switch enabled, persist, notificationControls, pinnedNotification, blueLight;
     private SeekBar intensity, warmth;
-    private TextView warmthLabel;
+    private TextView warmthLabel, blueSupport, bluePermission;
     private PhoneIllustrationView illustration;
     private boolean draggingWarmth;
     private TextView permissionBanner, currentStatus, actionStatus;
@@ -82,6 +82,8 @@ public final class MainActivity extends Activity {
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.PERSIST), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.ACTIVE), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.KELVIN), false, observer);
+        getContentResolver().registerContentObserver(Settings.System.getUriFor(BlueLightController.XIAOMI_ACTIVE), false, observer);
+        getContentResolver().registerContentObserver(Settings.System.getUriFor(BlueLightController.XIAOMI_LEVEL), false, observer);
         sync();
         NotificationController.refresh(this);
         UpdateActivity.checkOnAppOpen(this);
@@ -229,7 +231,7 @@ public final class MainActivity extends Activity {
         LinearLayout blueCard = panel();
         blueLight = sw();
         blueCard.addView(labelSwitch("Blue light filter",blueLight),lp(-1,-2));
-        TextView blueNote = text("Native Night Light • separate from Extra Dim",13,GREY,false);
+        TextView blueNote = text("Native blue-light control • separate from Extra Dim",13,GREY,false);
         addWithMargins(blueCard,blueNote,0,6);
         warmthLabel = text("Warmth 50%",15,WHITE,false);
         addWithMargins(blueCard,warmthLabel,6,4);
@@ -244,12 +246,14 @@ public final class MainActivity extends Activity {
         warmHints.addView(cooler,new LinearLayout.LayoutParams(0,d(20),1));
         warmHints.addView(warmer,new LinearLayout.LayoutParams(0,d(20),1));
         blueCard.addView(warmHints,lp(-1,-2));
-        TextView blueSupport = text(
-            BlueLightController.featureReportedAvailable(this)
-              ? "Uses Android Night Light. If the display color does not change, Xiaomi Reading mode may use different controls."
-              : "Android Night Light is not reported available by this ROM. Xiaomi Reading mode may use different vendor controls.",
-            12,GREY,false);
+        blueSupport = text(BlueLightController.description(this),12,GREY,false);
         addWithMargins(blueCard,blueSupport,6,4);
+        bluePermission = text("Allow LumaShade to modify system settings for Xiaomi Reading mode",14,0xFFBBD7FF,true);
+        bluePermission.setGravity(Gravity.CENTER);
+        bluePermission.setPadding(d(10),d(12),d(10),d(12));
+        bluePermission.setBackground(rounded(0xFF2D3446,12));
+        bluePermission.setOnClickListener(v -> requestBlueLightPermission());
+        addWithMargins(blueCard,bluePermission,8,4);
         addWithMargins(body,blueCard,0,15);
 
         LinearLayout notificationCard = panel();
@@ -321,7 +325,8 @@ public final class MainActivity extends Activity {
                 + " Android " + Build.VERSION.RELEASE + " user=" + (Process.myUid()/100000)
                 + "\nSecure grant=" + DimController.hasPermission(this)
                 + "\nCurrent: " + snapshot()
-                + "\nRead issue: " + DimController.lastReadIssue() + "\n" + history;
+                + "\nBlue light: " + BlueLightController.diagnostics(this)
+                 + "\nRead issue: " + DimController.lastReadIssue() + "\n" + history;
             ClipboardManager cb = (ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
             cb.setPrimaryClip(ClipData.newPlainText("Extra Dim diagnostics",report));
             Toast.makeText(this,"Diagnostics copied",Toast.LENGTH_SHORT).show();
@@ -357,7 +362,19 @@ public final class MainActivity extends Activity {
         });
         blueLight.setOnCheckedChangeListener((view,checked) -> {
             if (syncing) return;
-            applySetting("Blue light filter",BlueLightController.ACTIVE,checked ? 1 : 0);
+            if (!BlueLightController.canControl(this)) {
+                if (BlueLightController.needsModifySettings(this)) requestBlueLightPermission();
+                else actionStatus.setText("Blue light requires the ADB secure-settings grant.");
+                sync();
+                return;
+            }
+            boolean ok=BlueLightController.setEnabled(this,checked);
+            actionStatus.setText(ok
+                ? "Blue light " + (checked?"on":"off") + " requested through "
+                    + (BlueLightController.usingXiaomi(this)?"Xiaomi Reading mode.":"Android Night Light.")
+                : "Blue light change rejected: " + BlueLightController.lastWriteIssue(this));
+            trace("Blue light toggle requested=" + checked + " accepted=" + ok);
+            sync();
         });
         warmth.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onStartTrackingTouch(SeekBar bar) { draggingWarmth=true; }
@@ -368,15 +385,19 @@ public final class MainActivity extends Activity {
                 draggingWarmth=false;
                 int chosen=bar.getProgress();
                 trace("Blue warmth selected " + chosen);
-                if (BlueLightController.setStrength(MainActivity.this,chosen)) {
-                    int actualKelvin = DimController.read(MainActivity.this,
-                            BlueLightController.KELVIN,-1);
-                    actionStatus.setText("Night Light " + chosen + "% ("
-                            + actualKelvin + " K saved). If the color stays unchanged, "
-                            + "the Xiaomi display pipeline may ignore this setting.");
+                if (!BlueLightController.canControl(MainActivity.this)) {
+                    if (BlueLightController.needsModifySettings(MainActivity.this))
+                        requestBlueLightPermission();
+                    else actionStatus.setText("Blue light requires the secure-settings grant.");
+                } else if (BlueLightController.setStrength(MainActivity.this,chosen)) {
+                    actionStatus.setText((BlueLightController.usingXiaomi(MainActivity.this)
+                        ? "Xiaomi Reading mode intensity "
+                        : "Android Night Light temperature ")
+                        + chosen + "% saved (reported " + BlueLightController.strength(MainActivity.this)
+                        + "%). Check whether the screen changed; Xiaomi may ignore direct setting writes.");
                 } else {
-                    actionStatus.setText("Android rejected the color-temperature change. "
-                            + DimController.lastWriteIssue());
+                    actionStatus.setText("Blue-light intensity update rejected: "
+                            + BlueLightController.lastWriteIssue(MainActivity.this));
                 }
                 sync();
             }
@@ -405,6 +426,19 @@ public final class MainActivity extends Activity {
                     Toast.LENGTH_LONG).show();
             sync();
         });
+    }
+    private void requestBlueLightPermission() {
+        try {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+            intent.setData(android.net.Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+            Toast.makeText(this,
+                    "Allow Modify system settings for Xiaomi Reading mode, then return to LumaShade.",
+                    Toast.LENGTH_LONG).show();
+        } catch (RuntimeException e) {
+            actionStatus.setText("HyperOS could not open Modify system settings. "
+                    + "Open LumaShade's app info and check Special permissions.");
+        }
     }
     @Override public void onRequestPermissionsResult(
             int requestCode, String[] permissions, int[] grantResults) {
@@ -483,10 +517,12 @@ public final class MainActivity extends Activity {
         }
         persist.setChecked(visible(DimController.PERSIST,
                 DimController.read(this,DimController.PERSIST,0))==1);
-        blueLight.setChecked(visible(BlueLightController.ACTIVE,
-                DimController.read(this,BlueLightController.ACTIVE,0)) == 1);
+        blueLight.setChecked(BlueLightController.active(this));
         if (!draggingWarmth) warmth.setProgress(BlueLightController.strength(this));
         warmthLabel.setText("Warmth " + BlueLightController.strength(this) + "%");
+        blueSupport.setText(BlueLightController.description(this));
+        bluePermission.setVisibility(BlueLightController.needsModifySettings(this)
+                ? View.VISIBLE : View.GONE);
         if (illustration != null) illustration.setWarmthEnabled(BlueLightController.active(this));
         notificationControls.setChecked(NotificationController.enabled(this));
         pinnedNotification.setChecked(NotificationController.pinned(this));
@@ -505,12 +541,12 @@ public final class MainActivity extends Activity {
         // Only the strength sliders depend on their respective active toggles.
         boolean dimOn = visible(DimController.ACTIVE,
                 DimController.read(this,DimController.ACTIVE,0)) == 1;
-        boolean warmOn = visible(BlueLightController.ACTIVE,
-                DimController.read(this,BlueLightController.ACTIVE,0)) == 1;
+        boolean warmOn = BlueLightController.active(this);
+        boolean bluePermitted = BlueLightController.canControl(this);
         intensity.setEnabled(permitted && dimOn);
-        blueLight.setEnabled(permitted);
-        warmth.setEnabled(permitted && warmOn);
-        warmthLabel.setTextColor(permitted && warmOn ? WHITE : GREY);
+        blueLight.setEnabled(bluePermitted);
+        warmth.setEnabled(bluePermitted && warmOn);
+        warmthLabel.setTextColor(bluePermitted && warmOn ? WHITE : GREY);
         persist.setEnabled(permitted);
         notificationControls.setEnabled(permitted);
         pinnedNotification.setEnabled(NotificationController.enabled(this));

@@ -53,10 +53,12 @@ public final class NotificationController {
         view.setOnClickPendingIntent(R.id.n_small_settings,open);
         view.setImageViewResource(R.id.n_dim_icon,
                 dim?R.drawable.ic_dim_on:R.drawable.ic_dim_off);
-        view.setTextViewText(R.id.n_dim_caption,dim?"Dim on":"Dim off");
+        view.setTextViewText(R.id.n_dim_caption,"Dim");
+        view.setTextColor(R.id.n_dim_caption,dim?0xFF75AAFF:0xFF8F97A6);
         view.setImageViewResource(R.id.n_warm_icon,
                 warm?R.drawable.ic_warm_filter_on:R.drawable.ic_warm_filter_off);
-        view.setTextViewText(R.id.n_warm_caption,warm?"Warm on":"Warm off");
+        view.setTextViewText(R.id.n_warm_caption,"Blue light\nfilter");
+        view.setTextColor(R.id.n_warm_caption,warm?0xFFF4BB75:0xFF8F97A6);
         return view;
     }
     static synchronized void refresh(Context c) {
@@ -71,7 +73,7 @@ public final class NotificationController {
                     NotificationManager.IMPORTANCE_LOW);
             ch.setSound(null,null);
             ch.enableVibration(false);
-            ch.setDescription("Tap moon, sun or settings gear");
+            ch.setDescription("Dim, blue light filter and settings");
             nm.createNotificationChannel(ch);
             boolean dim=DimController.active(c);
             boolean warm=BlueLightController.active(c);
@@ -82,7 +84,7 @@ public final class NotificationController {
             Notification n=new Notification.Builder(c,CHANNEL)
                     .setSmallIcon(R.drawable.ic_lumashade_mono)
                     .setContentTitle("LumaShade")
-                    .setContentText("Moon for dim • Sun for blue light • Gear for settings")
+                    .setContentText("Dim • Blue light filter • Settings")
                     .setContentIntent(open)
                     .setStyle(new Notification.DecoratedCustomViewStyle())
                     .setCustomContentView(ui(c,dim,warm,open))
