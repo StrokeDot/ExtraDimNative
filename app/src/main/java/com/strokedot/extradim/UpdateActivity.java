@@ -54,18 +54,14 @@ public final class UpdateActivity extends Activity {
             "https://raw.githubusercontent.com/StrokeDot/ExtraDimNative/updates/latest.json";
     private static final String META_CDN =
             "https://cdn.jsdelivr.net/gh/StrokeDot/ExtraDimNative@updates/latest.json";
-    private static final String DOWNLOADS =
-            "https://github.com/StrokeDot/ExtraDimNative/tree/updates/apks";
     private static final String APK_PREFIX =
             "https://raw.githubusercontent.com/StrokeDot/ExtraDimNative/updates/apks/";
-    private static final String BUILDS =
-            "https://github.com/StrokeDot/ExtraDimNative/actions/workflows/android-updates.yml";
     private static final String PREFS="updates";
     private static final String UPDATE_CHANNEL="lumashade_app_updates";
     private static final long CHECK_INTERVAL=6L*60*60*1000;
     private static final Handler MAIN=new Handler(Looper.getMainLooper());
 
-    private TextView status,checkButton,downloadButton,installButton;
+    private TextView status,checkMark,checkButton,downloadButton,installButton;
     private String latestName,assetUrl,fileName,expectedSha;
     private int latestCode;
     private long downloadId=-1;
@@ -107,41 +103,47 @@ public final class UpdateActivity extends Activity {
         TextView title=text("App updates",27,true);
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);
         p.topMargin=dp(24);panel.addView(title,p);
-        TextView current=text("Installed: v"+BuildConfig.VERSION_NAME,15,false);
+        TextView current=text("Installed version  ·  v"+BuildConfig.VERSION_NAME,14,false);
         current.setTextColor(0xFF9DA9BD);
         LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);
-        cp.topMargin=dp(12);panel.addView(current,cp);
-        status=text("Checking for a newer LumaShade APK…",14,false);
-        status.setTextColor(0xFFC3CEDD);
+        cp.topMargin=dp(10);
+        panel.addView(current,cp);
+
+        LinearLayout statusCard=new LinearLayout(this);
+        statusCard.setOrientation(LinearLayout.VERTICAL);
+        statusCard.setGravity(Gravity.CENTER_HORIZONTAL);
+        statusCard.setBackground(bg(0xFF181D25));
+        statusCard.setPadding(dp(18),dp(24),dp(18),dp(24));
         LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);
-        sp.topMargin=dp(20);panel.addView(status,sp);
-        checkButton=button("Check again",panel);
+        sp.topMargin=dp(24);
+        panel.addView(statusCard,sp);
+
+        checkMark=text("✓",32,true);
+        checkMark.setTextColor(0xFF72E4A6);
+        checkMark.setGravity(Gravity.CENTER);
+        checkMark.setBackground(bg(0xFF234534));
+        checkMark.setVisibility(View.GONE);
+        LinearLayout.LayoutParams markParams=new LinearLayout.LayoutParams(dp(62),dp(62));
+        markParams.bottomMargin=dp(12);
+        statusCard.addView(checkMark,markParams);
+        status=text("Checking for updates…",17,true);
+        status.setGravity(Gravity.CENTER);
+        statusCard.addView(status,new LinearLayout.LayoutParams(-1,-2));
+
+        checkButton=button("Check for updates",panel);
         checkButton.setOnClickListener(v->check());
-        TextView manual=button("Open signed APK downloads (if check fails)",panel);
-        manual.setOnClickListener(v->{
-            try {
-                startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(DOWNLOADS)));
-            } catch (RuntimeException e) {
-                report("Unable to open browser. Visit " + DOWNLOADS);
-            }
-        });
-        downloadButton=button("Download and install update",panel);
+
+        downloadButton=button("Install update",panel);
+        downloadButton.setTextColor(0xFFFFD8E6);
+        downloadButton.setBackground(bg(0xFF513044));
         downloadButton.setVisibility(View.GONE);
         downloadButton.setOnClickListener(v->download());
-        installButton=button("Install downloaded APK",panel);
+
+        installButton=button("Install update",panel);
+        installButton.setTextColor(0xFFFFD8E6);
+        installButton.setBackground(bg(0xFF513044));
         installButton.setVisibility(View.GONE);
         installButton.setOnClickListener(v->verifyAndInstall());
-        TextView source=button("View update build history",panel);
-        source.setOnClickListener(v->startActivity(
-                new Intent(Intent.ACTION_VIEW,Uri.parse(BUILDS))));
-        TextView info=text("Updates are published automatically after a signed build. "
-                +"Android will ask you to confirm installation. A one-time switch "
-                +"from the old ADB-only test build is required because those builds "
-                +"used a temporary signing key and Android's test-only flag.",
-                13,false);
-        info.setTextColor(0xFF9BA6B9);
-        LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);
-        ip.topMargin=dp(20);panel.addView(info,ip);
 
         android.content.SharedPreferences pref=getSharedPreferences(PREFS,MODE_PRIVATE);
         downloadId=pref.getLong("download_id",-1L);
@@ -224,7 +226,8 @@ public final class UpdateActivity extends Activity {
         throw new java.io.IOException("All update sources failed. "+failures);
     }
     private void check(){
-        report("Checking the latest automatically published APK…");
+        report("Checking for updates…");
+        checkMark.setVisibility(View.GONE);
         checkButton.setEnabled(false);
         downloadButton.setVisibility(View.GONE);
         new Thread(()->{
@@ -238,31 +241,38 @@ public final class UpdateActivity extends Activity {
                     if(!active)return;
                     checkButton.setEnabled(true);
                     if(code<=BuildConfig.VERSION_CODE) {
-                        report("LumaShade v"+BuildConfig.VERSION_NAME+" (code "+BuildConfig.VERSION_CODE+
-                                ") is up to date. Latest published: v"+version+" (code "+code+
-                                ") via "+data.optString("_source")+".");
-                    }else{
+                        installButton.setVisibility(View.GONE);
+                        downloadButton.setVisibility(View.GONE);
+                        checkMark.setVisibility(View.VISIBLE);
+                        report("You're up to date");
+                    } else {
+                        checkMark.setVisibility(View.GONE);
                         latestName=version;
                         latestCode=code;
                         assetUrl=url;
                         fileName="LumaShade-v"+version+".apk";
                         expectedSha=hash;
-                        report("Update available: LumaShade v"+version+" (code "+code+
-                                "), found via "+data.optString("_source")+
-                                ". Tap Download and install.");
-                        downloadButton.setVisibility(View.VISIBLE);
-                        downloadButton.setText("Download and install v"+version);
+                        report("Update available · v"+version);
+                        int savedCode=getSharedPreferences(PREFS,MODE_PRIVATE)
+                                .getInt("download_code",0);
+                        if(savedCode==code && installButton.getVisibility()==View.VISIBLE) {
+                            downloadButton.setVisibility(View.GONE);
+                        } else if(savedCode==code && downloadId>=0) {
+                            downloadButton.setVisibility(View.GONE);
+                            MAIN.postDelayed(this::checkDownload,500);
+                        } else {
+                            installButton.setVisibility(View.GONE);
+                            downloadButton.setVisibility(View.VISIBLE);
+                        }
                     }
                 });
             }catch(Exception e){
                 MAIN.post(()->{
                     if(!active)return;
                     checkButton.setEnabled(true);
-                    report(e instanceof java.io.FileNotFoundException
-                            ?"No installable update has been published yet. "
-                                +"The signing setup must be completed once in GitHub."
-                            :"Unable to check updates: "+e.getMessage()+
-                                 ". Tap Open signed APK downloads for manual installation.");
+                    checkMark.setVisibility(View.GONE);
+                    report("Couldn't check for updates. Try again.");
+                    android.util.Log.w("LumaShadeUpdater","Update check failed",e);
                 });
             }
         },"LumaShade-CheckUpdates").start();
@@ -289,10 +299,16 @@ public final class UpdateActivity extends Activity {
                     .putInt("download_code",latestCode)
                     .apply();
             autoInstallAfterDownload=true;
+            checkMark.setVisibility(View.GONE);
             downloadButton.setVisibility(View.GONE);
-            report("Downloading LumaShade v"+latestName+"…");
+            installButton.setVisibility(View.GONE);
+            report("Downloading update…");
             MAIN.postDelayed(this::checkDownload,1500);
-        }catch(Exception e){report("Download could not start: "+e.getMessage());}
+        }catch(Exception e){
+            report("Couldn't download the update. Try again.");
+            downloadButton.setVisibility(View.VISIBLE);
+            android.util.Log.w("LumaShadeUpdater","Download failed to start",e);
+        }
     }
     private void checkDownload(){
         if(!active||downloadId<0||inspecting)return;
@@ -304,15 +320,21 @@ public final class UpdateActivity extends Activity {
                 if(cursor==null||!cursor.moveToFirst())return;
                 int state=cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
                 if(state==DownloadManager.STATUS_SUCCESSFUL){
-                    report("Download complete. Verifying APK…");
+                    report("Update ready to install");
+                    downloadButton.setVisibility(View.GONE);
                     installButton.setVisibility(View.VISIBLE);
                     if(autoInstallAfterDownload){
                         autoInstallAfterDownload=false;
                         verifyAndInstall();
                     }
                 }else if(state==DownloadManager.STATUS_FAILED){
-                    report("Download failed; tap Check again.");
+                    report("Download failed. Try again.");
                     downloadId=-1;
+                    installButton.setVisibility(View.GONE);
+                    if(latestCode>BuildConfig.VERSION_CODE)
+                        downloadButton.setVisibility(View.VISIBLE);
+                    getSharedPreferences(PREFS,MODE_PRIVATE).edit()
+                            .remove("download_id").apply();
                 }else{
                     MAIN.postDelayed(this::checkDownload,1700);
                 }
@@ -345,8 +367,11 @@ public final class UpdateActivity extends Activity {
                 .getString("download_sha",expectedSha);
         int requiredCode=getSharedPreferences(PREFS,MODE_PRIVATE).getInt("download_code",0);
         long id=getSharedPreferences(PREFS,MODE_PRIVATE).getLong("download_id",-1);
-        if(localName==null||expected==null||id<0){report("No download to install.");return;}
-        report("Verifying update signature and checksum…");
+        if(localName==null||expected==null||id<0){
+            report("No update downloaded yet.");
+            return;
+        }
+        report("Preparing update…");
         installButton.setEnabled(false);
         new Thread(()->{
             try{
@@ -377,7 +402,7 @@ public final class UpdateActivity extends Activity {
                     if(!active)return;
                     installButton.setEnabled(true);
                     if(!pm.canRequestPackageInstalls()){
-                        report("Allow LumaShade to install updates on the next screen, then tap Install.");
+                        report("Allow installation, then tap Install update.");
                         startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                                 Uri.parse("package:"+getPackageName())));
                         return;
@@ -388,7 +413,7 @@ public final class UpdateActivity extends Activity {
                     Intent intent=new Intent(Intent.ACTION_VIEW);
                     intent.setDataAndType(uri,"application/vnd.android.package-archive");
                     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    report("Android will ask you to approve the LumaShade update.");
+                    report("Confirm the update in Android.");
                     try{startActivity(intent);}
                     catch(Exception ex){report("Cannot open Android installer: "+ex.getMessage());}
                 });
@@ -396,7 +421,8 @@ public final class UpdateActivity extends Activity {
                 MAIN.post(()->{
                     if(!active)return;
                     installButton.setEnabled(true);
-                    report("Update not installed: "+e.getMessage());
+                    report("Couldn't install the update. Try again.");
+                    android.util.Log.w("LumaShadeUpdater","APK verification or installation failed",e);
                 });
             }
         },"LumaShade-VerifyApk").start();
