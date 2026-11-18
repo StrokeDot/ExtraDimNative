@@ -8,6 +8,8 @@ import android.content.ClipboardManager;
 import android.content.Intent;
 import android.database.ContentObserver;
 import android.graphics.Color;
+import android.content.res.ColorStateList;
+import android.net.Uri;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -36,11 +38,12 @@ public final class MainActivity extends Activity {
     private static final String GRANT =
         "adb -d shell pm grant com.strokedot.extradim android.permission.WRITE_SECURE_SETTINGS";
     private Switch enabled, persist, notificationControls, pinnedNotification, blueLight;
-    private SeekBar intensity;
+    private SeekBar intensity, warmth;
     private PhoneIllustrationView illustration;
-    private TextView permissionBanner, actionStatus;
+    private TextView permissionBanner, actionStatus, warmthLabel, warmthPermission;
     private boolean syncing;
-    private boolean draggingIntensity;
+    private boolean draggingIntensity, draggingWarmth;
+    private LinearLayout warmthSection;
     private final HashMap<String,Integer> pending = new HashMap<>();
     private final HashMap<String,Integer> generations = new HashMap<>();
     private String history = "";
@@ -80,6 +83,9 @@ public final class MainActivity extends Activity {
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.PERSIST), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.ACTIVE), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.KELVIN), false, observer);
+        getContentResolver().registerContentObserver(Settings.System.getUriFor(BlueLightController.XIAOMI_ACTIVE), false, observer);
+        getContentResolver().registerContentObserver(Settings.System.getUriFor(BlueLightController.XIAOMI_LEVEL), false, observer);
+        getContentResolver().registerContentObserver(Settings.System.getUriFor(BlueLightController.XIAOMI_MODE), false, observer);
         DimController.enforceMaxLevel(this);
         sync();
         NotificationController.refresh(this);
@@ -226,6 +232,32 @@ public final class MainActivity extends Activity {
         LinearLayout blueCard = panel();
         blueLight = sw();
         blueCard.addView(labelSwitch("Blue light filter",blueLight),lp(-1,-2));
+        warmthSection=vertical();
+        warmthLabel=text("Warmth",14,WHITE,true);
+        addWithMargins(warmthSection,warmthLabel,10,0);
+        warmth=new SeekBar(this);
+        warmth.setMax(100);
+        warmth.setProgressTintList(ColorStateList.valueOf(0xFFF4BB75));
+        warmth.setThumbTintList(ColorStateList.valueOf(0xFFF4BB75));
+        warmthSection.addView(warmth,lp(-1,44));
+        LinearLayout warmHints=new LinearLayout(this);
+        TextView cooler=text("Cooler",12,GREY,false);
+        TextView warmer=text("Warmer",12,GREY,false);
+        warmer.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
+        warmHints.addView(cooler,new LinearLayout.LayoutParams(0,d(22),1));
+        warmHints.addView(warmer,new LinearLayout.LayoutParams(0,d(22),1));
+        warmthSection.addView(warmHints,lp(-1,-2));
+        warmthPermission=actionButton("Allow warmth control",0xFFFFD8E6,0xFF513044);
+        addWithMargins(warmthSection,warmthPermission,8,0);
+        warmthPermission.setOnClickListener(v->{
+            try{
+                startActivity(new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        Uri.parse("package:"+getPackageName())));
+            }catch(RuntimeException e){
+                feedback("Allow LumaShade to modify system settings in Android Settings.");
+            }
+        });
+        blueCard.addView(warmthSection,lp(-1,-2));
         addWithMargins(body,blueCard,0,15);
 
         LinearLayout notificationCard = panel();
@@ -300,8 +332,33 @@ public final class MainActivity extends Activity {
             applySetting("Restart persistence",DimController.PERSIST,isChecked ? 1 : 0);
         });
         blueLight.setOnCheckedChangeListener((view,checked) -> {
-            if (syncing) return;
-            applySetting("Blue light filter",BlueLightController.ACTIVE,checked ? 1 : 0);
+            if(syncing)return;
+            if(BlueLightController.xiaomiSupported(this)){
+                if(!BlueLightController.canControl(this)){
+                    feedback("Allow warmth control in Android Settings first.");
+                    sync();
+                    return;
+                }
+                if(!BlueLightController.setEnabled(this,checked))
+                    feedback("Couldn't change blue light filter. Copy LumaShade diagnostics.");
+                sync();
+                main.postDelayed(this::sync,400);
+            }else{
+                applySetting("Blue light filter",BlueLightController.ACTIVE,checked?1:0);
+            }
+        });
+        warmth.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            @Override public void onStartTrackingTouch(SeekBar bar){draggingWarmth=true;}
+            @Override public void onProgressChanged(SeekBar bar,int p,boolean user){
+                if(user)warmthLabel.setText("Warmth "+p+"%");
+            }
+            @Override public void onStopTrackingTouch(SeekBar bar){
+                draggingWarmth=false;
+                if(!BlueLightController.xiaomiSupported(MainActivity.this))return;
+                boolean ok=BlueLightController.setStrength(MainActivity.this,bar.getProgress());
+                feedback(ok?"Warmth saved.":"Couldn't change warmth. Copy LumaShade diagnostics.");
+                main.postDelayed(MainActivity.this::sync,350);
+            }
         });
         pinnedNotification.setOnCheckedChangeListener((button, checked) -> {
             if (syncing) return;
@@ -351,7 +408,11 @@ public final class MainActivity extends Activity {
             + " level=" + DimController.read(this,DimController.LEVEL,-1)
             + " persist=" + DimController.read(this,DimController.PERSIST,-1)
             + " night=" + DimController.read(this,BlueLightController.ACTIVE,-1)
-            + " kelvin=" + DimController.read(this,BlueLightController.KELVIN,-1);
+            + " kelvin=" + DimController.read(this,BlueLightController.KELVIN,-1)
+            + " xiaomiMode=" + Settings.System.getString(getContentResolver(),BlueLightController.XIAOMI_MODE)
+            + " xiaomiEnabled=" + Settings.System.getString(getContentResolver(),BlueLightController.XIAOMI_ACTIVE)
+            + " xiaomiWarmth=" + Settings.System.getString(getContentResolver(),BlueLightController.XIAOMI_LEVEL)
+            + " nativeIssue=" + BlueLightController.lastIssue();
     }
     private int visible(String key,int actual) {
         return pending.containsKey(key) ? pending.get(key) : actual;
@@ -397,9 +458,20 @@ public final class MainActivity extends Activity {
         }
         persist.setChecked(visible(DimController.PERSIST,
                 DimController.read(this,DimController.PERSIST,0))==1);
-        blueLight.setChecked(visible(BlueLightController.ACTIVE,
-                DimController.read(this,BlueLightController.ACTIVE,0)) == 1);
-        if (illustration != null) illustration.setWarmthEnabled(BlueLightController.active(this));
+        boolean nativeWarmth=BlueLightController.xiaomiSupported(this);
+        boolean warmOn=nativeWarmth?BlueLightController.active(this):
+                visible(BlueLightController.ACTIVE,
+                        DimController.read(this,BlueLightController.ACTIVE,0))==1;
+        blueLight.setChecked(warmOn);
+        warmthSection.setVisibility(nativeWarmth?View.VISIBLE:View.GONE);
+        if(nativeWarmth){
+            if(!draggingWarmth)warmth.setProgress(BlueLightController.strength(this));
+            warmthLabel.setText("Warmth "+BlueLightController.strength(this)+"%");
+            boolean allowed=BlueLightController.canControl(this);
+            warmth.setEnabled(allowed&&warmOn);
+            warmthPermission.setVisibility(allowed?View.GONE:View.VISIBLE);
+        }
+        if (illustration != null) illustration.setWarmthEnabled(warmOn);
         notificationControls.setChecked(NotificationController.enabled(this));
         pinnedNotification.setChecked(NotificationController.pinned(this));
         boolean permitted=DimController.hasPermission(this);
@@ -408,7 +480,7 @@ public final class MainActivity extends Activity {
         boolean dimOn = visible(DimController.ACTIVE,
                 DimController.read(this,DimController.ACTIVE,0)) == 1;
         intensity.setEnabled(permitted && dimOn);
-        blueLight.setEnabled(permitted);
+        blueLight.setEnabled(BlueLightController.canControl(this));
         persist.setEnabled(permitted);
         notificationControls.setEnabled(permitted);
         pinnedNotification.setEnabled(NotificationController.enabled(this));
