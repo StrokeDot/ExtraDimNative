@@ -45,6 +45,7 @@ public final class MainActivity extends Activity {
     private final HashMap<String,Integer> generations = new HashMap<>();
     private String history = "";
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable intensityProgressListener = this::syncIntensity;
     private ContentObserver observer;
 
     @Override public void onCreate(Bundle state) {
@@ -68,7 +69,7 @@ public final class MainActivity extends Activity {
         android.util.Log.i("ExtraDimNative",entry);
     }
     private void onExternalChange(String key) {
-        // Temporary fade frames do not change the slider or the saved intensity.
+        // The slider gets fade frames directly from DimTransition.
         if(DimController.LEVEL.equals(key)&&DimTransition.value(this,key)!=null)return;
         trace("observer " + key + ": active=" + DimController.read(this,DimController.ACTIVE,-1)
                 + " level=" + DimController.read(this,DimController.LEVEL,-1)
@@ -84,11 +85,13 @@ public final class MainActivity extends Activity {
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.ACTIVE), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(BlueLightController.KELVIN), false, observer);
         DimController.enforceMaxLevel(this);
+        DimTransition.addProgressListener(intensityProgressListener);
         sync();
         NotificationController.reconcile(this);
         UpdateActivity.checkOnAppOpen(this);
     }
     @Override protected void onPause() {
+        DimTransition.removeProgressListener(intensityProgressListener);
         getContentResolver().unregisterContentObserver(observer);
         super.onPause();
     }
@@ -293,7 +296,9 @@ public final class MainActivity extends Activity {
             }
             @Override public void onStartTrackingTouch(SeekBar bar) { draggingIntensity=true; }
             @Override public void onStopTrackingTouch(SeekBar bar) {
+                boolean wasDragging = draggingIntensity;
                 draggingIntensity=false;
+                if (!wasDragging) return;
                 applySetting("Intensity",DimController.LEVEL,
                         DimController.MAX - bar.getProgress());
             }
@@ -389,15 +394,25 @@ public final class MainActivity extends Activity {
                 : label + " could not be confirmed. Copy LumaShade diagnostics.");
         sync();
     }
+    private void syncIntensity() {
+        boolean dimOn = DimController.active(this);
+        intensity.setEnabled(DimController.hasPermission(this) && dimOn);
+        if (!intensity.isEnabled()) draggingIntensity = false;
+        if (draggingIntensity) return;
+
+        Integer level = DimTransition.previewLevel();
+        if (level == null) {
+            level = dimOn ? visible(DimController.LEVEL, DimController.level(this)) : DimController.MIN;
+        }
+        intensity.setProgress(DimController.MAX - Math.max(DimController.MIN, Math.min(DimController.MAX, level)));
+    }
+
     private void sync() {
         if (enabled==null) return;
         syncing=true;
         enabled.setChecked(visible(DimController.ACTIVE,
                 DimController.read(this,DimController.ACTIVE,0))==1);
-        if (!draggingIntensity) {
-            int desired = visible(DimController.LEVEL,DimController.level(this));
-            intensity.setProgress(DimController.MAX-Math.max(DimController.MIN,Math.min(DimController.MAX,desired)));
-        }
+        syncIntensity();
         persist.setChecked(visible(DimController.PERSIST,
                 DimController.read(this,DimController.PERSIST,0))==1);
         blueLight.setChecked(visible(BlueLightController.ACTIVE,
@@ -407,10 +422,6 @@ public final class MainActivity extends Activity {
         pinnedNotification.setChecked(NotificationController.pinned(this));
         boolean permitted=DimController.hasPermission(this);
         enabled.setEnabled(permitted);
-        // Native Extra Dim strength is adjustable only while it is on.
-        boolean dimOn = visible(DimController.ACTIVE,
-                DimController.read(this,DimController.ACTIVE,0)) == 1;
-        intensity.setEnabled(permitted && dimOn);
         blueLight.setEnabled(permitted);
         persist.setEnabled(permitted);
         notificationControls.setEnabled(permitted);

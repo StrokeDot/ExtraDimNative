@@ -5,6 +5,8 @@ import android.animation.ValueAnimator;
 import android.app.Application;
 import android.os.Looper;
 import android.provider.Settings;
+import android.widget.SeekBar;
+import android.widget.Switch;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
@@ -12,6 +14,7 @@ import org.junit.After;
 import org.robolectric.shadows.ShadowChoreographer;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
@@ -76,6 +79,52 @@ public class ScreenTransitionTest {
         assertEquals(70,raw(DimController.LEVEL));
         assertEquals(1,second.get());
     }
+    @Test public void inAppSliderTracksTheFadeAndRestoresTheSavedPosition() {
+        app.getSharedPreferences("updates", 0).edit()
+                .putLong("last_checked", System.currentTimeMillis()).apply();
+        try (var activity = Robolectric.buildActivity(MainActivity.class).setup()) {
+            Switch toggle = ReflectionHelpers.getField(activity.get(), "enabled");
+            SeekBar slider = ReflectionHelpers.getField(activity.get(), "intensity");
+            int offPosition = DimController.MAX - DimController.MIN;
+            int savedPosition = DimController.MAX - 70;
+            assertEquals(offPosition, slider.getProgress());
+            assertFalse(slider.isEnabled());
+
+            toggle.performClick();
+            advance(250);
+            assertSliderFollowsScreen(slider);
+            advance(700);
+            assertEquals(savedPosition, slider.getProgress());
+            assertTrue(slider.isEnabled());
+
+            toggle.performClick();
+            assertFalse(slider.isEnabled());
+            advance(250);
+            assertSliderFollowsScreen(slider);
+            int reversingPosition = slider.getProgress();
+            toggle.performClick();
+            assertEquals(reversingPosition, slider.getProgress());
+            advance(700);
+            assertEquals(savedPosition, slider.getProgress());
+
+            toggle.performClick();
+            advance(900);
+            assertEquals(offPosition, slider.getProgress());
+            assertFalse(slider.isEnabled());
+            assertEquals(70, DimController.level(app));
+        }
+    }
+
+    private void assertSliderFollowsScreen(SeekBar slider) {
+        int screenLevel = raw(DimController.LEVEL);
+        int sliderLevel = DimController.MAX - slider.getProgress();
+        assertTrue(screenLevel > 0 && screenLevel < 70);
+        assertTrue(sliderLevel > DimController.MIN && sliderLevel < 70);
+        float screenFraction = screenLevel / 70f;
+        float sliderFraction = (sliderLevel - DimController.MIN) / (70f - DimController.MIN);
+        assertEquals(screenFraction, sliderFraction, 0.02f);
+    }
+
     @Test public void disabledAnimationsSettleImmediatelyWithoutLosingIntensity() {
         scale(0f);
         DimController.write(app,DimController.ACTIVE,1);

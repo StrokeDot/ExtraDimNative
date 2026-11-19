@@ -8,17 +8,39 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.animation.AnimationUtils;
+import java.util.HashSet;
+import java.util.Set;
 
 /** Animate the real native Extra Dim strength, without a screen overlay. */
 final class DimTransition {
     private DimTransition() {}
     static final String PREFS="dim_transition";
     private static final Handler MAIN=new Handler(Looper.getMainLooper());
+    private static final Set<Runnable> progressListeners = new HashSet<>();
     private static ValueAnimator animator;
     private static Runnable completed;
     private static Runnable watchdog;
     private static int savedLevel;
     private static boolean targetOn;
+
+    static void addProgressListener(Runnable listener) {
+        progressListeners.add(listener);
+    }
+
+    static void removeProgressListener(Runnable listener) {
+        progressListeners.remove(listener);
+    }
+
+    static Integer previewLevel() {
+        if (animator == null) return null;
+        // Use the brightest slider endpoint for off while the screen fades all the way to zero.
+        float fraction = (float) animator.getAnimatedValue();
+        return DimController.MIN + Math.round((savedLevel - DimController.MIN) * fraction);
+    }
+
+    private static void notifyProgress() {
+        for (Runnable listener : progressListeners) listener.run();
+    }
 
     private static SharedPreferences prefs(Context c) {
         return c.getSharedPreferences(PREFS,Context.MODE_PRIVATE);
@@ -75,6 +97,7 @@ final class DimTransition {
             ValueAnimator current=animator;
             if(reverse)current.reverse(); // Preserve the current screen strength.
             if(animator==current)armWatchdog(c,current);
+            notifyProgress();
             notifyState(c);
             return true;
         }
@@ -109,9 +132,14 @@ final class DimTransition {
         next.addUpdateListener(a -> {
             if(animator!=next)return;
             int level=Math.round(savedLevel*(float)a.getAnimatedValue());
-            if(level==previous[0])return;
-            previous[0]=level;
-            if(!DimController.writeNative(c,DimController.LEVEL,level,false))finish(c);
+            if (level != previous[0]) {
+                previous[0] = level;
+                if (!DimController.writeNative(c, DimController.LEVEL, level, false)) {
+                    finish(c);
+                    return;
+                }
+            }
+            notifyProgress();
         });
         next.addListener(new AnimatorListenerAdapter() {
             @Override public void onAnimationEnd(Animator a) {
@@ -121,7 +149,10 @@ final class DimTransition {
         // ValueAnimator and the notification drawable both honor Android's
         // animation duration scale. reverse() also works before the first start.
         if(on)next.start();else next.reverse();
-        if(animator==next)armWatchdog(c,next);
+        if (animator == next) {
+            armWatchdog(c, next);
+            notifyProgress();
+        }
         notifyState(c);
         return true;
     }
@@ -140,6 +171,7 @@ final class DimTransition {
         watchdog=null;
         old.cancel();
         restore(c,targetOn,savedLevel);
+        notifyProgress();
         notifyState(c);
         completeCallback();
     }
