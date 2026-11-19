@@ -14,7 +14,8 @@
         android:orientation="vertical" android:paddingTop="5dp" android:contentDescription="Toggle Extra Dim">
         <ImageView android:id="@+id/n_dim_icon"
             android:layout_width="24dp" android:layout_height="24dp"
-            android:src="@drawable/ic_dim_off"/>
+            android:enabled="false" android:importantForAccessibility="no"
+            android:src="@drawable/ic_notify_dim"/>
         <TextView android:id="@+id/n_dim_caption"
             android:layout_width="match_parent" android:layout_height="29dp"
             android:gravity="top|center_horizontal" android:includeFontPadding="false" android:text="Dim"
@@ -27,7 +28,8 @@
         android:orientation="vertical" android:paddingTop="5dp" android:contentDescription="Toggle blue light filter">
         <ImageView android:id="@+id/n_warm_icon"
             android:layout_width="24dp" android:layout_height="24dp"
-            android:src="@drawable/ic_warm_filter_off"/>
+            android:enabled="false" android:importantForAccessibility="no"
+            android:src="@drawable/ic_notify_warm"/>
         <TextView android:id="@+id/n_warm_caption"
             android:layout_width="match_parent" android:layout_height="29dp"
             android:gravity="top|center_horizontal" android:includeFontPadding="false" android:text="Blue light&#10;filter"

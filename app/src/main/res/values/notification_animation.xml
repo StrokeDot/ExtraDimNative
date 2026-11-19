@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="notification_dim_fade_ms">300</integer>
+    <!-- Android native Night Light uses a 3000ms fast_out_slow_in transition. -->
+    <integer name="notification_warm_fade_ms">3000</integer>
+</resources>

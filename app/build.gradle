@@ -8,8 +8,8 @@ android {
         applicationId 'com.strokedot.extradim'
         minSdk 31
         targetSdk 35
-        versionCode 24
-        versionName '0.15.9'
+        versionCode 25
+        versionName '0.15.10'
     }
     // Long-lived private key provided ONLY through GitHub Actions secrets.
     signingConfigs {
@@ -30,6 +30,9 @@ android {
             minifyEnabled false
         }
     }
+    testOptions {
+        unitTests.includeAndroidResources = true
+    }
     buildFeatures {
         buildConfig true
     }
@@ -37,4 +40,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
 }

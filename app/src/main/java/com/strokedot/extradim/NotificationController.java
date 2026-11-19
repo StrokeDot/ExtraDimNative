@@ -23,10 +23,7 @@ public final class NotificationController {
     private static final String PINNED="pinned";
     private static final String CHANNEL="lumashade_controls_v5";
     static final int ID=31;
-    static final int ANIMATE_DIM=1;
-    static final int ANIMATE_FILTER=2;
     private static final Handler MAIN=new Handler(Looper.getMainLooper());
-    private static int animationGeneration=0;
 
     static boolean enabled(Context c) {
         return c.getSharedPreferences(PREFS,Context.MODE_PRIVATE).getBoolean(ENABLED,false);
@@ -77,37 +74,22 @@ public final class NotificationController {
         return PendingIntent.getBroadcast(c,id,intent,
                 PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);
     }
-    private static int buttonBackground(boolean dim,boolean active,boolean pulse) {
-        if(pulse)return active ?
-            (dim?R.drawable.bg_notify_dim_pulse:R.drawable.bg_notify_warm_pulse) :
-            R.drawable.bg_notify_off_pulse;
-        return active ?
-            (dim?R.drawable.bg_notify_dim_active:R.drawable.bg_notify_warm_active) :
-            R.drawable.bg_notify_neutral;
-    }
-    private static RemoteViews ui(Context c,boolean dim,boolean warm,
-                                  PendingIntent open,int pulseTarget,boolean pulse) {
+    private static RemoteViews ui(Context c,boolean dim,boolean warm,PendingIntent open) {
         RemoteViews view=new RemoteViews(c.getPackageName(),R.layout.notification_lumashade_small);
         view.setOnClickPendingIntent(R.id.n_small_dim,
                 action(c,DimActionReceiver.DIM_TOGGLE,401));
         view.setOnClickPendingIntent(R.id.n_small_warm,
                 action(c,DimActionReceiver.FILTER_TOGGLE,402));
         view.setOnClickPendingIntent(R.id.n_small_settings,open);
-        view.setInt(R.id.n_small_dim,"setBackgroundResource",
-                buttonBackground(true,dim,pulse&&pulseTarget==ANIMATE_DIM));
-        view.setInt(R.id.n_small_warm,"setBackgroundResource",
-                buttonBackground(false,warm,pulse&&pulseTarget==ANIMATE_FILTER));
-        view.setImageViewResource(R.id.n_dim_icon,dim?R.drawable.ic_dim_on:R.drawable.ic_dim_off);
-        view.setTextViewText(R.id.n_dim_caption,"Dim");
-        view.setTextColor(R.id.n_dim_caption,
-                pulse&&pulseTarget==ANIMATE_DIM ? 0xFFFFFFFF :
-                (dim?0xFFB6CCFF:0xFF9AA6B9));
-        view.setImageViewResource(R.id.n_warm_icon,
-                warm?R.drawable.ic_warm_filter_on:R.drawable.ic_warm_filter_off);
-        view.setTextViewText(R.id.n_warm_caption,"Blue light\nfilter");
-        view.setTextColor(R.id.n_warm_caption,
-                pulse&&pulseTarget==ANIMATE_FILTER ? 0xFFFFFFFF :
-                (warm?0xFFF7D4A4:0xFF9AA6B9));
+        // Only update state. Replacing the drawable on every refresh would interrupt
+        // its animation. SystemUI runs the animated selectors locally at display rate,
+        // with Android's animator duration scale, without notification frame reposts.
+        // The icon is decorative; its parent remains enabled and handles every tap.
+        view.setBoolean(R.id.n_dim_icon,"setEnabled",dim);
+        view.setBoolean(R.id.n_warm_icon,"setEnabled",warm);
+        view.setContentDescription(R.id.n_small_dim,"Extra Dim " + (dim?"on":"off") + ", toggle");
+        view.setContentDescription(R.id.n_small_warm,
+                "Blue light filter " + (warm?"on":"off") + ", toggle");
         return view;
     }
     private static void createChannel(NotificationManager nm) {
@@ -120,8 +102,7 @@ public final class NotificationController {
         nm.createNotificationChannel(ch);
         nm.deleteNotificationChannel("lumashade_controls_v4");
     }
-    static Notification build(Context c,int pulseTarget,boolean pulse,
-                              Boolean dimOverride,Boolean warmOverride) {
+    static Notification build(Context c,Boolean dimOverride,Boolean warmOverride) {
         NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);
         if(nm!=null)createChannel(nm);
         boolean dim=dimOverride!=null?dimOverride:DimController.active(c);
@@ -136,8 +117,8 @@ public final class NotificationController {
                 .setContentText("Dim • Blue light filter • Settings")
                 .setContentIntent(open)
                 .setStyle(new Notification.DecoratedCustomViewStyle())
-                .setCustomContentView(ui(c,dim,warm,open,pulseTarget,pulse))
-                .setCustomBigContentView(ui(c,dim,warm,open,pulseTarget,pulse))
+                .setCustomContentView(ui(c,dim,warm,open))
+                .setCustomBigContentView(ui(c,dim,warm,open))
                 .setPriority(Notification.PRIORITY_HIGH)
                 .setOnlyAlertOnce(true)
                 .setShowWhen(false)
@@ -151,39 +132,16 @@ public final class NotificationController {
         }
         return n;
     }
-    static synchronized void refresh(Context c) {
-        post(c,0,false,null,null);
+    static void refresh(Context c) {
+        refresh(c,null,null);
     }
-    private static void post(Context c,int target,boolean pulse,
-                             Boolean dim,Boolean warm) {
+    static void refresh(Context c,Boolean dim,Boolean warm) {
         NotificationManager nm=(NotificationManager)c.getSystemService(Context.NOTIFICATION_SERVICE);
         if(nm==null)return;
         if(!enabled(c)||!canPost(c)){
             nm.cancel(ID);
             return;
         }
-        nm.notify(ID,build(c,target,pulse,dim,warm));
-    }
-    /** Brief press/settle pulse works with RemoteViews across process boundaries.
-     * Each tap changes the real device setting before updating notification visuals.
-     */
-    static synchronized void animate(Context c,int target,boolean newState,Runnable completed) {
-        final int generation=++animationGeneration;
-        final Context app=c.getApplicationContext();
-        final Boolean dim=target==ANIMATE_DIM?Boolean.valueOf(newState):null;
-        final Boolean warm=target==ANIMATE_FILTER?Boolean.valueOf(newState):null;
-        post(app,target,true,dim,warm);
-        MAIN.postDelayed(()->{
-            synchronized(NotificationController.class){
-                if(generation==animationGeneration)
-                    post(app,target,false,dim,warm);
-            }
-        },170);
-        MAIN.postDelayed(()->{
-            synchronized(NotificationController.class){
-                if(generation==animationGeneration)refresh(app);
-            }
-            if(completed!=null)completed.run();
-        },460);
+        nm.notify(ID,build(c,dim,warm));
     }
 }

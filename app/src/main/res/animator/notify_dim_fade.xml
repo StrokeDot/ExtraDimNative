@@ -1,0 +1,5 @@
+<objectAnimator xmlns:android="http://schemas.android.com/apk/res/android"
+    android:propertyName="fillColor" android:valueType="colorType"
+    android:valueFrom="#8F97A6" android:valueTo="#75AAFF"
+    android:duration="@integer/notification_dim_fade_ms"
+    android:interpolator="@android:interpolator/fast_out_slow_in"/>
