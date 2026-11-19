@@ -4,11 +4,14 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-/** Reposts the optional notification after a reboot; does NOT switch Extra Dim on. */
+/** Restore opted-in notification controls after boot or an app update. */
 public class DimBootReceiver extends BroadcastReceiver {
-    @Override public void onReceive(Context context, Intent intent) {
-        if (intent != null && Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
-            NotificationController.refresh(context);
+    @Override public void onReceive(Context context,Intent intent) {
+        if(intent==null)return;
+        String action=intent.getAction();
+        if(Intent.ACTION_BOOT_COMPLETED.equals(action) ||
+                Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+            NotificationController.reconcile(context);
         }
     }
 }
