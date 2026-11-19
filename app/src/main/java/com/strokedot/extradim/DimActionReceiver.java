@@ -10,26 +10,19 @@ public class DimActionReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context context,Intent intent) {
         if(intent==null)return;
         String action=intent.getAction();
-        int target;
-        boolean previous;
-        if(DIM_TOGGLE.equals(action)){
-            target=NotificationController.ANIMATE_DIM;
-            previous=DimController.active(context);
-        }else if(FILTER_TOGGLE.equals(action)){
-            target=NotificationController.ANIMATE_FILTER;
-            previous=BlueLightController.active(context);
-        }else return;
+        boolean dim=DIM_TOGGLE.equals(action);
+        if(!dim&&!FILTER_TOGGLE.equals(action))return;
         if(!DimController.hasPermission(context)){
             NotificationController.refresh(context);
             return;
         }
-        boolean accepted=target==NotificationController.ANIMATE_DIM?
-                DimController.toggle(context):BlueLightController.toggle(context);
-        if(!accepted){
-            NotificationController.refresh(context);
-            return;
-        }
-        PendingResult pending=goAsync();
-        NotificationController.animate(context,target,!previous,pending::finish);
+        boolean previous=dim?DimController.active(context):BlueLightController.active(context);
+        boolean accepted=dim?DimController.write(context,DimController.ACTIVE,previous?0:1):
+                DimController.write(context,BlueLightController.ACTIVE,previous?0:1);
+        // A successful provider write may be read back asynchronously. Use its
+        // accepted target now; subsequent refreshes preserve the same drawable.
+        NotificationController.refresh(context,
+                accepted&&dim?Boolean.valueOf(!previous):null,
+                accepted&&!dim?Boolean.valueOf(!previous):null);
     }
 }

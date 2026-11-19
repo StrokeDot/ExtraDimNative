@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/notify_dim_off" android:state_enabled="false"
+        android:drawable="@drawable/ic_notify_dim_off"/>
+    <item android:id="@+id/notify_dim_on" android:state_enabled="true"
+        android:drawable="@drawable/ic_notify_dim_on"/>
+    <transition android:fromId="@id/notify_dim_off" android:toId="@id/notify_dim_on"
+        android:drawable="@drawable/avd_notify_dim" android:reversible="true"/>
+</animated-selector>

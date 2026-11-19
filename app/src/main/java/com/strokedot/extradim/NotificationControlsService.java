@@ -20,7 +20,7 @@ public final class NotificationControlsService extends Service {
         }
         try {
             android.app.Notification notification=
-                    NotificationController.build(this,0,false,null,null);
+                    NotificationController.build(this,null,null);
             if(Build.VERSION.SDK_INT>=34)
                 startForeground(NotificationController.ID,notification,
                         ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);

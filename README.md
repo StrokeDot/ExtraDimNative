@@ -138,3 +138,13 @@ Settings or the original accessibility shortcut. This is a known limitation.
 
 Until secrets are configured, the signed OTA workflow intentionally skips
 publishing APKs; the old development artifacts still require ADB -t.
+
+## v0.15.10: smooth notification icons
+
+Removed the notification button boxes and press flash. The existing moon and
+filter icons now fade in place using Android animated state drawables, including
+a reversible ring-to-sun fade for the filter. SystemUI renders animation frames
+locally and follows the system animator duration scale (including animations off).
+Dim feedback takes 300 ms; filter feedback follows Android Night Light's standard
+3000 ms easing. Captions remain steady and neutral. Native screen settings and
+notification pinning are unchanged. OEM screen transition timing can differ.

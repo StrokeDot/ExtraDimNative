@@ -1,6 +1,8 @@
 name: Build LumaShade APK
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 jobs:
@@ -23,7 +25,7 @@ jobs:
         with:
           gradle-version: '8.11.1'
       - name: Build debug APK
-        run: gradle :app:assembleDebug --no-daemon
+        run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon
       - name: Give APK the app name and version
         run: |
           VERSION=$(sed -n "s/^[[:space:]]*versionName[[:space:]]*'\\([^']*\\)'.*/\\1/p" app/build.gradle | head -n 1)
