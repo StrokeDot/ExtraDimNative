@@ -13,6 +13,7 @@ import android.util.Log;
  */
 public final class NotificationControlsService extends Service {
     @Override public int onStartCommand(Intent intent,int flags,int startId) {
+        DimTransition.recover(this);
         if(!NotificationController.enabled(this) || !NotificationController.pinned(this)
                 || !NotificationController.canPost(this)){
             stopSelf();

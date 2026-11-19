@@ -68,6 +68,8 @@ public final class MainActivity extends Activity {
         android.util.Log.i("ExtraDimNative",entry);
     }
     private void onExternalChange(String key) {
+        // Temporary fade frames do not change the slider or the saved intensity.
+        if(DimController.LEVEL.equals(key)&&DimTransition.value(this,key)!=null)return;
         trace("observer " + key + ": active=" + DimController.read(this,DimController.ACTIVE,-1)
                 + " level=" + DimController.read(this,DimController.LEVEL,-1)
                 + " persist=" + DimController.read(this,DimController.PERSIST,-1));
@@ -75,6 +77,7 @@ public final class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
+        DimTransition.recover(this);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.ACTIVE), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.LEVEL), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(DimController.PERSIST), false, observer);

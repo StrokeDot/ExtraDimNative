@@ -16,13 +16,18 @@ public class DimActionReceiver extends BroadcastReceiver {
             NotificationController.refresh(context);
             return;
         }
-        boolean previous=dim?DimController.active(context):BlueLightController.active(context);
-        boolean accepted=dim?DimController.write(context,DimController.ACTIVE,previous?0:1):
-                DimController.write(context,BlueLightController.ACTIVE,previous?0:1);
-        // A successful provider write may be read back asynchronously. Use its
-        // accepted target now; subsequent refreshes preserve the same drawable.
-        NotificationController.refresh(context,
-                accepted&&dim?Boolean.valueOf(!previous):null,
-                accepted&&!dim?Boolean.valueOf(!previous):null);
+        DimTransition.recover(context);
+        if(dim) {
+            PendingResult pending=goAsync();
+            // Keep this process alive until the real screen fade has finished,
+            // including when the app itself is closed or controls are unpinned.
+            DimTransition.setActive(context,!DimController.active(context),pending::finish);
+        }else {
+            // Android's Night Light service owns its native animated color-matrix
+            // transition. Do not change Kelvin mid-fade: that forces a hard reset.
+            boolean previous=BlueLightController.active(context);
+            boolean accepted=BlueLightController.toggle(context);
+            NotificationController.refresh(context,null,accepted?!previous:null);
+        }
     }
 }

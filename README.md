@@ -148,3 +148,15 @@ locally and follows the system animator duration scale (including animations off
 Dim feedback takes 300 ms; filter feedback follows Android Night Light's standard
 3000 ms easing. Captions remain steady and neutral. Native screen settings and
 notification pinning are unchanged. OEM screen transition timing can differ.
+
+## v0.15.11: fade the actual screen dimming
+
+Extra Dim now animates the native strength over 600 ms, matching the icon's
+transition and Android's animation duration scale. Fade-out reaches zero before
+disabling the effect and restores the saved intensity only after it is disabled.
+Repeat taps reverse the same animation. Temporary strength values do not replace
+the chosen intensity or generate notification frame updates. Notification taps
+keep the process alive for the fade; interrupted transitions recover their saved
+endpoint on the next app, service, tile or boot entry. Night Light continues to
+use Android's native screen color fade and matching 3000 ms icon transition,
+without modifying the chosen warmth. OEM Night Light timing needs device testing.

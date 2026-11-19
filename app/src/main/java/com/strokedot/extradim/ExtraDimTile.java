@@ -7,7 +7,7 @@ import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
 
 public class ExtraDimTile extends TileService {
-    @Override public void onStartListening() { super.onStartListening(); update(); }
+    @Override public void onStartListening() { super.onStartListening(); DimTransition.recover(this); update(); }
     @Override public void onClick() {
         super.onClick();
         if (!DimController.hasPermission(this)) {

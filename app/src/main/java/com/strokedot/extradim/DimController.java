@@ -40,6 +40,11 @@ public final class DimController {
     static boolean isShadowState() { return !BuildConfig.DEBUG; }
     static String lastReadIssue() { return lastReadIssue; }
     static int read(Context c, String key, int fallback) {
+        // UI state describes the user's target, never a temporary animation frame.
+        Integer target=DimTransition.value(c,key);
+        return target!=null?target:readNative(c,key,fallback);
+    }
+    static int readNative(Context c, String key, int fallback) {
         try {
             int value = Settings.Secure.getInt(c.getContentResolver(), key, fallback);
             lastReadIssue = "";
@@ -74,6 +79,14 @@ public final class DimController {
     private static volatile String lastWriteIssue = "";
     static String lastWriteIssue() { return lastWriteIssue; }
     static boolean write(Context c, String key, int value) {
+        if(ACTIVE.equals(key))return DimTransition.setActive(c,value==1,null);
+        if(LEVEL.equals(key))DimTransition.finish(c);
+        boolean accepted=writeNative(c,key,value,true);
+        if(accepted)refreshLater(c);
+        return accepted;
+    }
+    // Animation frames must not replace the saved intensity or repost notifications.
+    static boolean writeNative(Context c,String key,int value,boolean rememberValue) {
         if (!hasPermission(c)) {
             lastWriteIssue = "WRITE_SECURE_SETTINGS was not granted";
             return false;
@@ -81,21 +94,20 @@ public final class DimController {
         try {
             boolean accepted = Settings.Secure.putInt(c.getContentResolver(), key, value);
             lastWriteIssue = accepted ? "" : "Android SettingsProvider rejected the write";
-            if (accepted) {
-                remember(c,key,value);
-                Context app = c.getApplicationContext();
-                // Defer shade reads; the service may still be processing the write.
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    requestTileUpdate(app);
-                    NotificationController.refresh(app);
-                }, 350);
-            }
+            if(accepted&&rememberValue)remember(c,key,value);
             return accepted;
         } catch (RuntimeException e) {
             lastWriteIssue = e.getClass().getSimpleName()
                     + (e.getMessage() == null ? "" : ": " + e.getMessage());
             return false;
         }
+    }
+    static void refreshLater(Context c) {
+        Context app=c.getApplicationContext();
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            requestTileUpdate(app);
+            NotificationController.refresh(app);
+        },350);
     }
     static boolean toggle(Context c) { return write(c, ACTIVE, active(c) ? 0 : 1); }
     static void requestTileUpdate(Context c) {
