@@ -125,6 +125,31 @@ public class ScreenTransitionTest {
         assertEquals(screenFraction, sliderFraction, 0.02f);
     }
 
+    @Test public void quickSettingsTilesWorkIndependentlyWithNotificationsOff() {
+        put(BlueLightController.ACTIVE, 0);
+        var dimTile = Robolectric.buildService(ExtraDimTile.class).create();
+        var filterTile = Robolectric.buildService(BlueLightTile.class).create();
+        try {
+            assertFalse(NotificationController.enabled(app));
+            filterTile.get().onClick();
+            assertTrue(BlueLightController.active(app));
+            assertFalse(DimController.active(app));
+
+            dimTile.get().onClick();
+            advance(700);
+            assertEquals(1, raw(DimController.ACTIVE));
+            assertTrue(BlueLightController.active(app));
+
+            filterTile.get().onClick();
+            assertFalse(BlueLightController.active(app));
+            assertTrue(DimController.active(app));
+            assertFalse(NotificationController.enabled(app));
+        } finally {
+            filterTile.destroy();
+            dimTile.destroy();
+        }
+    }
+
     @Test public void disabledAnimationsSettleImmediatelyWithoutLosingIntensity() {
         scale(0f);
         DimController.write(app,DimController.ACTIVE,1);

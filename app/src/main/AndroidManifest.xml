@@ -16,6 +16,10 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
         <service android:name=".NotificationControlsService"
             android:exported="false"
@@ -23,10 +27,20 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled persistent notification shade controls for native Extra Dim and Night Light" />
         </service>
-        <service android:name=".ExtraDimTile" android:label="LumaShade Dim"
+        <service android:name=".ExtraDimTile" android:label="@string/dim_tile_label"
             android:icon="@drawable/ic_lumashade_mono"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service android:name=".BlueLightTile" android:label="@string/filter_tile_label"
+            android:icon="@drawable/ic_warm_filter_on"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>

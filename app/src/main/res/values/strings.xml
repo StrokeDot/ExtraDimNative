@@ -1,4 +1,12 @@
 <resources>
     <string name="app_name">LumaShade</string>
+    <string name="dim_tile_label">LumaShade Dim</string>
+    <string name="filter_tile_label">LumaShade Filter</string>
+    <string name="control_center">Control Center</string>
+    <string name="add_dim_tile">Add Extra Dim tile</string>
+    <string name="add_filter_tile">Add Blue light tile</string>
+    <string name="tile_added">%1$s added</string>
+    <string name="tile_already_added">%1$s is already in Quick Settings</string>
+    <string name="tile_add_manually">Open Control Center or Quick Settings, tap Edit, and add %1$s.</string>
     <string name="service_description">Allows the accessibility button to toggle native Extra Dim. This service does not inspect screen contents or create an overlay.</string>
 </resources>

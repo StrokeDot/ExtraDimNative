@@ -82,7 +82,7 @@ public final class DimController {
         if(ACTIVE.equals(key))return DimTransition.setActive(c,value==1,null);
         if(LEVEL.equals(key))DimTransition.finish(c);
         boolean accepted=writeNative(c,key,value,true);
-        if(accepted)refreshLater(c);
+        if(accepted)refreshLater(c,key);
         return accepted;
     }
     // Animation frames must not replace the saved intensity or repost notifications.
@@ -102,17 +102,24 @@ public final class DimController {
             return false;
         }
     }
-    static void refreshLater(Context c) {
+    private static void refreshLater(Context c, String key) {
         Context app=c.getApplicationContext();
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            requestTileUpdate(app);
+            if (BlueLightController.ACTIVE.equals(key)) {
+                requestTileUpdate(app, BlueLightTile.class);
+            } else {
+                requestTileUpdate(app);
+            }
             NotificationController.refresh(app);
         },350);
     }
     static boolean toggle(Context c) { return write(c, ACTIVE, active(c) ? 0 : 1); }
     static void requestTileUpdate(Context c) {
+        requestTileUpdate(c, ExtraDimTile.class);
+    }
+    private static void requestTileUpdate(Context c, Class<? extends TileService> tile) {
         try {
-            TileService.requestListeningState(c, new ComponentName(c, ExtraDimTile.class));
+            TileService.requestListeningState(c, new ComponentName(c, tile));
         } catch (Exception ignored) { }
     }
 }

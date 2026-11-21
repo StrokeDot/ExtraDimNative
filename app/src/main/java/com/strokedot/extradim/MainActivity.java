@@ -2,22 +2,26 @@ package com.strokedot.extradim;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.StatusBarManager;
 import android.content.pm.PackageManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.database.ContentObserver;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Icon;
 import android.os.Bundle;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import java.util.HashMap;
 import android.os.Process;
-import android.os.Build;
 import android.provider.Settings;
+import android.service.quicksettings.TileService;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -142,6 +146,46 @@ public final class MainActivity extends Activity {
         button.setBackground(rounded(background,14));
         return button;
     }
+    private void addControlCenterTile(Class<? extends TileService> tile, int labelId, int iconId) {
+        String label = getString(labelId);
+        if (Build.VERSION.SDK_INT >= 33) {
+            StatusBarManager statusBar = getSystemService(StatusBarManager.class);
+            if (statusBar != null) {
+                try {
+                    statusBar.requestAddTileService(new ComponentName(this, tile), label,
+                            Icon.createWithResource(this, iconId), getMainExecutor(), result -> {
+                                if (isFinishing() || isDestroyed()) return;
+                                switch (result) {
+                                    case StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED:
+                                        Toast.makeText(this, getString(R.string.tile_added, label),
+                                                Toast.LENGTH_SHORT).show();
+                                        break;
+                                    case StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED:
+                                        Toast.makeText(this, getString(R.string.tile_already_added, label),
+                                                Toast.LENGTH_SHORT).show();
+                                        break;
+                                    case StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED:
+                                        break;
+                                    default:
+                                        showManualTileInstructions(label);
+                                }
+                            });
+                    return;
+                } catch (RuntimeException e) {
+                    trace("Could not open the tile add prompt: " + e.getClass().getSimpleName());
+                }
+            }
+        }
+        showManualTileInstructions(label);
+    }
+
+    private void showManualTileInstructions(String label) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.control_center)
+                .setMessage(getString(R.string.tile_add_manually, label))
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
     private void feedback(String message) {
         if (actionStatus==null) return;
         actionStatus.setText(message);
@@ -240,6 +284,19 @@ public final class MainActivity extends Activity {
         pinnedNotification = sw();
         notificationCard.addView(labelSwitch("Keep notification pinned", pinnedNotification), lp(-1,-2));
         addWithMargins(body,notificationCard,0,14);
+
+        LinearLayout tileCard = panel();
+        tileCard.addView(text(getString(R.string.control_center),16,WHITE,true),lp(-1,-2));
+        TextView addDimTile = actionButton(getString(R.string.add_dim_tile),0xFFBBD7FF,0xFF2D3446);
+        addDimTile.setOnClickListener(v -> addControlCenterTile(
+                ExtraDimTile.class, R.string.dim_tile_label, R.drawable.ic_lumashade_mono));
+        addWithMargins(tileCard,addDimTile,10,8);
+        TextView addFilterTile = actionButton(getString(R.string.add_filter_tile),0xFFBBD7FF,0xFF2D3446);
+        addFilterTile.setOnClickListener(v -> addControlCenterTile(
+                BlueLightTile.class, R.string.filter_tile_label, R.drawable.ic_warm_filter_on));
+        tileCard.addView(addFilterTile,lp(-1,-2));
+        addWithMargins(body,tileCard,0,14);
+
         LinearLayout updateCard = panel();
         TextView updateTitle=text("Updates",16,WHITE,true);
         updateCard.addView(updateTitle,lp(-1,-2));
